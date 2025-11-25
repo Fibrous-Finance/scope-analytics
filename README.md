@@ -4,10 +4,12 @@ Analyze smart contract activity on Citrea Testnet with SQLite caching and increm
 
 ## Features
 
+- **Multi-Network Support** - Support for Citrea Testnet and Monad Mainnet
+- **Interactive Mode** - Easy network selection via CLI
 - **Incremental Scanning** - Only scans new blocks since last run
-- **SQLite Cache** - Persistent storage with WAL mode
+- **SQLite Cache** - Persistent storage with WAL mode (separate DB per network)
 - **Event Decoding** - Decode and analyze Swap events
-- **Real Fee Metrics** - Total and daily fees (cBTC)
+- **Real Fee Metrics** - Total and daily fees
 - **Recent Swaps** - Compact summary of latest N swaps
 - **Auto Retry** - Automatic retry for RPC failures
 - **HTTP API** - RESTful metrics endpoint
@@ -16,9 +18,10 @@ Analyze smart contract activity on Citrea Testnet with SQLite caching and increm
 
 ### New/Enhanced
 
+- **Modular Architecture** — Refactored codebase for better maintainability.
+- **Interactive Network Selection** — Choose between Citrea and Monad at runtime.
 - **Multi-Swap Event Support** — Stores multiple Swap logs per transaction via `log_index`.
-- **Token Metadata via Multicall** — Batched ERC20 `decimals` and `symbol` retrieval with automatic fallback to single calls.
-- **Clear Backfill Logs** — Explicit summary of swaps inserted and transactions containing Swap events.
+- **Token Metadata via Multicall** — Batched ERC20 `decimals` and `symbol` retrieval.
 
 ## Quick Start
 
@@ -29,7 +32,7 @@ pnpm install
 # Configure environment
 cp .env.example .env
 
-# Run scanner
+# Run scanner (Interactive)
 pnpm start
 ```
 
@@ -42,11 +45,16 @@ Edit the `.env` file:
 CITREA_RPC_URL=https://rpc.testnet.citrea.xyz
 CITREA_CHAIN_ID=5115
 
-# Contract to analyze
+# Monad Mainnet
+MONAD_RPC_URL=https://monad-mainnet.g.alchemy.com/v2/...
+MONAD_CHAIN_ID=143
+MONAD_CONTRACT_ADDRESS=0x274602a953847d807231d2370072f5f4e4594b44
+
+# Contract to analyze (Citrea Default)
 CONTRACT_ADDRESS=0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556
 
 # Database
-DATABASE_FILE=citrea_cache.db
+CITREA_DATABASE_FILE=citrea_cache.db
 
 # Performance
 BATCH_SIZE=1000
@@ -61,28 +69,32 @@ See [docs/configuration.md](docs/configuration.md) for all options.
 
 ## Usage
 
-### Full Enhanced Scan
+### Interactive Mode
+
+Simply run `pnpm start` and select a network from the list.
+
+### Command Line Arguments
+
+You can specify the network directly:
 
 ```bash
-pnpm start
-```
+# Run for Citrea
+pnpm start -- --network citrea
 
-### Basic Version
-
-```bash
-pnpm start:basic
+# Run for Monad
+pnpm start -- --network monad
 ```
 
 ### Incremental Scan
 
 ```bash
-pnpm scan
+pnpm scan -- --network citrea
 ```
 
 ### Start API Server
 
 ```bash
-pnpm serve
+pnpm serve -- --network citrea
 ```
 
 Access at: `http://localhost:3000/metrics`
@@ -90,13 +102,13 @@ Access at: `http://localhost:3000/metrics`
 ### Export to JSON
 
 ```bash
-pnpm export
+pnpm export -- --network citrea
 ```
 
 ### Combined Options
 
 ```bash
-pnpm start -- --incremental true --serve true --export report.json
+pnpm start -- --network citrea --incremental --serve --export report.json
 ```
 
 ## API Response
@@ -142,10 +154,13 @@ pnpm start -- --incremental true --serve true --export report.json
 
 ```
 citrea-analytics/
-├── analyze.ts              # Standard version
-├── analyze-enhanced.ts     # Enhanced version (default)
-├── abi.ts                  # Contract ABI
-├── check-db.ts             # Database checker
+├── src/                    # Source code
+│   ├── config/             # Configuration (networks, env, abi)
+│   ├── database/           # Database logic
+│   ├── services/           # Business logic (indexer, server)
+│   ├── utils/              # Utilities
+│   ├── scripts/            # Helper scripts (check-db)
+│   └── index.ts            # Entry point
 ├── docs/                   # Documentation
 ├── package.json            # Dependencies
 └── .env                    # Configuration

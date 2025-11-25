@@ -80,13 +80,16 @@ Complete documentation for Citrea Analytics.
 
 ## Version History
 
-### Current Version: 1.0.0
+### Current Version: 1.1.0
 
 **Features**:
 
+- ✅ **Multi-Network Support** (Citrea Testnet & Monad Mainnet)
+- ✅ **Interactive CLI** with network selection
+- ✅ **Modular Architecture** (`src/` directory structure)
 - ✅ Enhanced version as default (`pnpm start`)
 - ✅ Simplified scripts (`pnpm scan`, `pnpm serve`, `pnpm export`)
-- ✅ Incremental scanning with SQLite cache
+- ✅ Incremental scanning with SQLite cache (separate DB per network)
 - ✅ Complete documentation
 - ✅ HTTP API server
 - ✅ JSON export functionality
@@ -100,4 +103,4 @@ Complete documentation for Citrea Analytics.
 
 ---
 
-**Last Updated**: 2025-10-16
+**Last Updated**: 2025-11-25

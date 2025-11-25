@@ -36,6 +36,36 @@ CITREA_RPC_URL=https://rpc.testnet.citrea.xyz
 CITREA_CHAIN_ID=5115
 ```
 
+#### MONAD_RPC_URL
+
+- **Type:** String (URL)
+- **Default:** `https://monad-mainnet.g.alchemy.com/v2/...`
+- **Description:** RPC endpoint for Monad Mainnet
+
+```bash
+MONAD_RPC_URL=https://monad-mainnet.g.alchemy.com/v2/...
+```
+
+#### MONAD_CHAIN_ID
+
+- **Type:** Number
+- **Default:** `143`
+- **Description:** Monad Mainnet chain ID
+
+```bash
+MONAD_CHAIN_ID=143
+```
+
+#### MONAD_CONTRACT_ADDRESS
+
+- **Type:** String (Address)
+- **Default:** `0x274602a953847d807231d2370072f5f4e4594b44`
+- **Description:** Contract address to analyze on Monad
+
+```bash
+MONAD_CONTRACT_ADDRESS=0x274602a953847d807231d2370072f5f4e4594b44
+```
+
 ### Contract Settings
 
 #### CONTRACT_ADDRESS
@@ -52,14 +82,26 @@ CONTRACT_ADDRESS=0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556
 
 ### Database Settings
 
-#### DATABASE_FILE
+#### CITREA_DATABASE_FILE
 
 - **Type:** String (Path)
 - **Default:** `citrea_cache.db`
-- **Description:** SQLite database file path
+- **Description:** SQLite database file path (for Citrea network)
 
 ```bash
-DATABASE_FILE=citrea_cache.db
+CITREA_DATABASE_FILE=citrea_cache.db
+```
+
+**Note:** Monad network uses `monad_cache.db` by default.
+
+#### MONAD_DATABASE_FILE
+
+- **Type:** String (Path)
+- **Default:** `monad_cache.db`
+- **Description:** SQLite database file path (for Monad network)
+
+```bash
+MONAD_DATABASE_FILE=monad_cache.db
 ```
 
 ### Performance Settings
@@ -210,17 +252,17 @@ pnpm start -- --incremental true --serve true
 
 ## Default Values
 
-| Variable           | Default                                    | Type    |
-| ------------------ | ------------------------------------------ | ------- |
-| CITREA_RPC_URL     | https://rpc.testnet.citrea.xyz             | String  |
-| CITREA_CHAIN_ID    | 5115                                       | Number  |
-| CONTRACT_ADDRESS   | 0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556 | Address |
-| DATABASE_FILE      | citrea_cache.db                            | String  |
-| BATCH_SIZE         | 1000                                       | Number  |
-| MAX_RETRIES        | 3                                          | Number  |
-| RETRY_DELAY_MS     | 1000                                       | Number  |
-| API_PORT           | 3000                                       | Number  |
-| API_HOST           | localhost                                  | String  |
-| INCLUDE_EVENTS     | false                                      | Boolean |
-| EVENTS_LIMIT       | 10                                         | Number  |
-| RECENT_SWAPS_LIMIT | 10                                         | Number  |
+| Variable             | Default                                    | Type    |
+| -------------------- | ------------------------------------------ | ------- |
+| CITREA_RPC_URL       | https://rpc.testnet.citrea.xyz             | String  |
+| CITREA_CHAIN_ID      | 5115                                       | Number  |
+| CONTRACT_ADDRESS     | 0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556 | Address |
+| CITREA_DATABASE_FILE | citrea_cache.db                            | String  |
+| BATCH_SIZE           | 1000                                       | Number  |
+| MAX_RETRIES          | 3                                          | Number  |
+| RETRY_DELAY_MS       | 1000                                       | Number  |
+| API_PORT             | 3000                                       | Number  |
+| API_HOST             | localhost                                  | String  |
+| INCLUDE_EVENTS       | false                                      | Boolean |
+| EVENTS_LIMIT         | 10                                         | Number  |
+| RECENT_SWAPS_LIMIT   | 10                                         | Number  |

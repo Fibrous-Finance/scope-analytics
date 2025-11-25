@@ -6,7 +6,7 @@ import { config } from "dotenv";
 
 config();
 
-const DB_FILE = process.env.DATABASE_FILE || "citrea_cache.db";
+const DB_FILE = process.env.CITREA_DATABASE_FILE || process.env.DATABASE_FILE || "citrea_cache.db";
 
 console.log("🗄️  Database Status Check\n");
 

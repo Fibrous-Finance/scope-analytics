@@ -110,6 +110,15 @@ pnpm scan
 
 ## Database Commands
 
+### Database Files
+
+Each network uses a separate database file to ensure data isolation:
+
+- **Citrea:** `citrea_cache.db`
+- **Monad:** `monad_cache.db`
+
+The file name is automatically determined based on the selected network.
+
 ### Check Status
 
 ```bash
@@ -119,7 +128,7 @@ pnpm db:check
 Output:
 
 ```
-🗄️  Database Status Check
+🗄️  Database Status Check (citrea_cache.db)
 
 📊 Meta Information:
   Last Scanned Block: 16,850,000
@@ -144,7 +153,7 @@ Output:
 pnpm db:reset
 ```
 
-⚠️ **Warning:** This deletes all data!
+⚠️ **Warning:** This deletes all data for **both** networks (Citrea and Monad)!
 
 ## Common Queries
 
@@ -253,11 +262,11 @@ sqlite3 citrea_cache.db ".backup backups/citrea_cache_$(date +%Y%m%d_%H%M%S).db"
 ### Automated Scanning
 
 ```bash
-# Cron: Every 6 hours
-0 */6 * * * cd /path/to/citrea-analytics && pnpm scan
+# Cron: Every 6 hours (Citrea)
+0 */6 * * * cd /path/to/citrea-analytics && pnpm scan -- --network citrea
 
-# Cron: Daily at midnight
-0 0 * * * cd /path/to/citrea-analytics && pnpm scan
+# Cron: Daily at midnight (Monad)
+0 0 * * * cd /path/to/citrea-analytics && pnpm scan -- --network monad
 ```
 
 ### Log Rotation

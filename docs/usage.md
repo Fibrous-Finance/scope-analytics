@@ -5,23 +5,24 @@ Complete guide for using Citrea Analytics.
 ## Quick Reference
 
 ```bash
-# Full enhanced scan
+# Interactive Mode (Select network)
 pnpm start
 
-# Basic version
-pnpm start:basic
+# Run for specific network
+pnpm start -- --network citrea
+pnpm start -- --network monad
 
 # Incremental scan
-pnpm scan
+pnpm scan -- --network citrea
 
 # Start API server
-pnpm serve
+pnpm serve -- --network citrea
 
 # Export to JSON
-pnpm export
+pnpm export -- --network citrea
 
 # All options combined
-pnpm start -- --incremental true --serve true --export report.json
+pnpm start -- --network citrea --incremental --serve --export report.json
 ```
 
 ## CLI Options
@@ -62,11 +63,11 @@ pnpm scan
 ### Automated Scanning
 
 ```bash
-# Add to crontab: daily at midnight
-0 0 * * * cd /path/to/citrea-analytics && pnpm scan
+# Add to crontab: daily at midnight (Citrea)
+0 0 * * * cd /path/to/citrea-analytics && pnpm scan -- --network citrea
 
-# Hourly scan
-0 * * * * cd /path/to/citrea-analytics && pnpm scan
+# Hourly scan (Monad)
+0 * * * * cd /path/to/citrea-analytics && pnpm scan -- --network monad
 ```
 
 ### Running as Service
@@ -75,8 +76,11 @@ pnpm scan
 # Install PM2
 npm install -g pm2
 
-# Start server
-pm2 start "pnpm serve" --name citrea-api
+# Start server for Citrea
+pm2 start "pnpm serve -- --network citrea" --name citrea-api
+
+# Start server for Monad
+pm2 start "pnpm serve -- --network monad" --name monad-api
 
 # View logs
 pm2 logs citrea-api
@@ -92,7 +96,7 @@ pm2 save
 #!/bin/bash
 DATE=$(date +%Y-%m-%d)
 # Export to dated file (override default analytics.json)
-pnpm start -- --incremental true --export "reports/$DATE.json"
+pnpm start -- --network citrea --incremental --export "reports/$DATE.json"
 ```
 
 ## Database Management
@@ -106,7 +110,7 @@ pnpm db:check
 ### Reset Database
 
 ```bash
-pnpm db:reset
+pnpm db:reset # Deletes BOTH citrea_cache.db and monad_cache.db
 pnpm start
 ```
 

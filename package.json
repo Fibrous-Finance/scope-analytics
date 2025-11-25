@@ -1,6 +1,6 @@
 {
 	"name": "citrea-analytics",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "Analyze smart contract activity on Citrea Testnet with SQLite caching and incremental scanning",
 	"type": "module",
 	"author": {
@@ -9,14 +9,13 @@
 		"url": "https://github.com/ahmetenesdur"
 	},
 	"scripts": {
-		"start": "tsx analyze-enhanced.ts",
-		"start:basic": "tsx analyze.ts",
-		"dev": "tsx watch analyze-enhanced.ts",
-		"scan": "tsx analyze-enhanced.ts -- --incremental true",
-		"serve": "tsx analyze-enhanced.ts -- --serve true",
-		"export": "tsx analyze-enhanced.ts -- --incremental true --export analytics.json",
-		"db:check": "tsx check-db.ts",
-		"db:reset": "rm -f citrea_cache.db* && echo 'Database deleted.'",
+		"start": "tsx src/index.ts",
+		"dev": "tsx watch src/index.ts",
+		"scan": "tsx src/index.ts -- --incremental",
+		"serve": "tsx src/index.ts -- --serve",
+		"export": "tsx src/index.ts -- --incremental --export analytics.json",
+		"db:check": "tsx src/scripts/check-db.ts",
+		"db:reset": "rm -f citrea_cache.db* monad_cache.db* && echo 'Databases deleted.'",
 		"type-check": "tsc --noEmit",
 		"format": "prettier --write .",
 		"postinstall": "node -e \"try { require('better-sqlite3') } catch {}\""
@@ -24,11 +23,13 @@
 	"dependencies": {
 		"better-sqlite3": "latest",
 		"dotenv": "latest",
+		"prompts": "^2.4.2",
 		"viem": "latest"
 	},
 	"devDependencies": {
 		"@types/better-sqlite3": "latest",
 		"@types/node": "latest",
+		"@types/prompts": "^2.4.9",
 		"prettier": "^3.6.2",
 		"tsx": "latest",
 		"typescript": "latest"
