@@ -54,7 +54,7 @@ function parseArgs() {
 }
 
 async function main() {
-	console.log("🌟 Citrea Analytics Tool (Modular Edition)\n");
+	console.log("🌟 Scope (Modular Edition)\n");
 
 	const config = await selectNetwork();
 	const args = parseArgs();

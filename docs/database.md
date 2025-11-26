@@ -263,10 +263,10 @@ sqlite3 citrea_cache.db ".backup backups/citrea_cache_$(date +%Y%m%d_%H%M%S).db"
 
 ```bash
 # Cron: Every 6 hours (Citrea)
-0 */6 * * * cd /path/to/citrea-analytics && pnpm scan -- --network citrea
+0 */6 * * * cd /path/to/scope-analytics && pnpm scan -- --network citrea
 
 # Cron: Daily at midnight (Monad)
-0 0 * * * cd /path/to/citrea-analytics && pnpm scan -- --network monad
+0 0 * * * cd /path/to/scope-analytics && pnpm scan -- --network monad
 ```
 
 ### Log Rotation

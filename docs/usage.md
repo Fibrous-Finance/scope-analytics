@@ -1,6 +1,6 @@
 # Usage Guide
 
-Complete guide for using Citrea Analytics.
+Complete guide for using Scope.
 
 ## Quick Reference
 
@@ -64,10 +64,10 @@ pnpm scan
 
 ```bash
 # Add to crontab: daily at midnight (Citrea)
-0 0 * * * cd /path/to/citrea-analytics && pnpm scan -- --network citrea
+0 0 * * * cd /path/to/scope-analytics && pnpm scan -- --network citrea
 
 # Hourly scan (Monad)
-0 * * * * cd /path/to/citrea-analytics && pnpm scan -- --network monad
+0 * * * * cd /path/to/scope-analytics && pnpm scan -- --network monad
 ```
 
 ### Running as Service

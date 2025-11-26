@@ -1,7 +1,7 @@
 {
-	"name": "citrea-analytics",
+	"name": "scope-analytics",
 	"version": "1.1.0",
-	"description": "Analyze smart contract activity on Citrea Testnet with SQLite caching and incremental scanning",
+	"description": "Analyze smart contract activity on multiple EVM networks (Citrea, Monad, etc.) with SQLite caching and incremental scanning",
 	"type": "module",
 	"author": {
 		"name": "Ahmet Enes Dur",

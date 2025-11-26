@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Citrea Analytics - Quick Start Script
+# Scope - Quick Start Script
 
-echo "🌟 Citrea Analytics - Quick Start Demo"
+echo "🌟 Scope - Quick Start Demo"
 echo ""
 
 # Check dependencies

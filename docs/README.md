@@ -1,6 +1,6 @@
 # 📚 Documentation Index
 
-Complete documentation for Citrea Analytics.
+Complete documentation for Scope.
 
 ---
 

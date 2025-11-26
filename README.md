@@ -1,6 +1,6 @@
-# Citrea Analytics
+# Scope
 
-Analyze smart contract activity on Citrea Testnet with SQLite caching and incremental scanning.
+Analyze smart contract activity on multiple EVM networks (Citrea, Monad, etc.) with SQLite caching and incremental scanning.
 
 ## Features
 
@@ -153,7 +153,7 @@ pnpm start -- --network citrea --incremental --serve --export report.json
 ## Project Structure
 
 ```
-citrea-analytics/
+scope-analytics/
 ├── src/                    # Source code
 │   ├── config/             # Configuration (networks, env, abi)
 │   ├── database/           # Database logic
