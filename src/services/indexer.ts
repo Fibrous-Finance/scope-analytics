@@ -5,6 +5,7 @@ import { ENV } from "../config/env";
 import { getChainDefinition, type NetworkConfig } from "../config/networks";
 import { erc20Abi } from "../config/abi";
 import { sanitizeDecimals } from "../utils/format";
+import { processInChunks } from "../utils/batch";
 
 export interface SwapEventData {
 	sender: string;
@@ -342,42 +343,40 @@ export async function backfillFees(
         VALUES (?, ?)
     `);
 
-	let processed = 0;
-	let inserted = 0;
+	let totalProcessed = 0;
+	let totalInserted = 0;
 
 	while (true) {
 		const rows = selectMissing.all(batch) as Array<{ tx_hash: string }>;
 		if (rows.length === 0) break;
 
-		for (let i = 0; i < rows.length; i += concurrency) {
-			const chunk = rows.slice(i, i + concurrency);
-			await Promise.all(
-				chunk.map(async ({ tx_hash }) => {
-					try {
-						const receipt = await client.getTransactionReceipt({
-							hash: tx_hash as `0x${string}`,
-						});
-						const eff = (receipt as unknown as { effectiveGasPrice: bigint })
-							.effectiveGasPrice;
-						const feeWei = receipt.gasUsed * eff;
-						insertFeeLocal.run(tx_hash, feeWei.toString());
-						inserted++;
-					} catch {
-					} finally {
-						processed++;
-					}
-				})
-			);
-		}
-
-		const percent = Math.min(100, (processed / totalMissing) * 100).toFixed(1);
-		console.log(
-			`  Backfill ${processed}/${totalMissing} | ${inserted} inserted | ${percent}% complete`
+		const { processed } = await processInChunks(
+			rows,
+			concurrency,
+			async ({ tx_hash }) => {
+				const receipt = await client.getTransactionReceipt({
+					hash: tx_hash as `0x${string}`,
+				});
+				const eff = (receipt as unknown as { effectiveGasPrice: bigint }).effectiveGasPrice;
+				const feeWei = receipt.gasUsed * eff;
+				insertFeeLocal.run(tx_hash, feeWei.toString());
+				totalInserted++;
+			},
+			(chunkProcessed) => {
+				// We don't need fine-grained progress per chunk here as we update outer loop
+			}
 		);
+
+		totalProcessed += processed;
+		const percent = Math.min(100, (totalProcessed / totalMissing) * 100).toFixed(1);
+		console.log(
+			`  Backfill ${totalProcessed}/${totalMissing} | ${totalInserted} inserted | ${percent}% complete`
+		);
+
 		if (rows.length < batch) break;
 	}
 
-	return { processed, inserted };
+	return { processed: totalProcessed, inserted: totalInserted };
 }
 
 export async function backfillSwapEvents(
@@ -411,79 +410,68 @@ export async function backfillSwapEvents(
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-	let processed = 0;
-	let inserted = 0;
-	let txWithSwap = 0;
+	let totalProcessed = 0;
+	let totalInserted = 0;
+	let totalTxWithSwap = 0;
 
 	while (true) {
 		const rows = selectMissing.all(batch) as Array<{ tx_hash: string }>;
 		if (rows.length === 0) break;
 
-		for (let i = 0; i < rows.length; i += concurrency) {
-			const chunk = rows.slice(i, i + concurrency);
-			await Promise.all(
-				chunk.map(async ({ tx_hash }) => {
-					try {
-						const receipt = await client.getTransactionReceipt({
-							hash: tx_hash as `0x${string}`,
+		const { processed } = await processInChunks(rows, concurrency, async ({ tx_hash }) => {
+			const receipt = await client.getTransactionReceipt({
+				hash: tx_hash as `0x${string}`,
+			});
+			let foundSwapForTx = false;
+			for (const recLog of receipt.logs ?? []) {
+				try {
+					const decoded = decodeEventLog({
+						abi: config.abi,
+						data: recLog.data,
+						topics: recLog.topics,
+					});
+					if (decoded.eventName === "Swap") {
+						const args = decoded.args as unknown as {
+							sender: string;
+							amount_in: bigint;
+							amount_out: bigint;
+							token_in: string;
+							token_out: string;
+							destination: string;
+						};
+						const block = await client.getBlock({
+							blockNumber: receipt.blockNumber!,
 						});
-						let foundSwapForTx = false;
-						for (const recLog of receipt.logs ?? []) {
-							try {
-								const decoded = decodeEventLog({
-									abi: config.abi,
-									data: recLog.data,
-									topics: recLog.topics,
-								});
-								if (decoded.eventName === "Swap") {
-									const args = decoded.args as unknown as {
-										sender: string;
-										amount_in: bigint;
-										amount_out: bigint;
-										token_in: string;
-										token_out: string;
-										destination: string;
-									};
-									const block = await client.getBlock({
-										blockNumber: receipt.blockNumber!,
-									});
-									insertSwapLocal.run(
-										tx_hash,
-										typeof recLog.logIndex !== "undefined"
-											? Number(recLog.logIndex)
-											: 0,
-										Number(receipt.blockNumber!),
-										args.sender.toLowerCase(),
-										args.amount_in.toString(),
-										args.amount_out.toString(),
-										args.token_in.toLowerCase(),
-										args.token_out.toLowerCase(),
-										args.destination.toLowerCase(),
-										Number(block.timestamp)
-									);
-									inserted++;
-									foundSwapForTx = true;
-								}
-							} catch {}
-						}
-						if (foundSwapForTx) txWithSwap++;
-					} catch {
-					} finally {
-						processed++;
+						insertSwapLocal.run(
+							tx_hash,
+							typeof recLog.logIndex !== "undefined" ? Number(recLog.logIndex) : 0,
+							Number(receipt.blockNumber!),
+							args.sender.toLowerCase(),
+							args.amount_in.toString(),
+							args.amount_out.toString(),
+							args.token_in.toLowerCase(),
+							args.token_out.toLowerCase(),
+							args.destination.toLowerCase(),
+							Number(block.timestamp)
+						);
+						totalInserted++;
+						foundSwapForTx = true;
 					}
-				})
-			);
-		}
+				} catch {}
+			}
+			if (foundSwapForTx) totalTxWithSwap++;
+		});
 
-		const percent = Math.min(100, (processed / totalMissing) * 100).toFixed(1);
+		totalProcessed += processed;
+		const percent = Math.min(100, (totalProcessed / totalMissing) * 100).toFixed(1);
 		console.log(
-			`  Backfill(events) ${processed}/${totalMissing} | swaps inserted: ${inserted} | tx with swaps: ${txWithSwap} | ${percent}% complete`
+			`  Backfill(events) ${totalProcessed}/${totalMissing} | swaps inserted: ${totalInserted} | tx with swaps: ${totalTxWithSwap} | ${percent}% complete`
 		);
 
 		if (rows.length < batch) break;
 	}
 
-	return { processed, inserted, txWithSwap };
+	return { processed: totalProcessed, inserted: totalInserted, txWithSwap: totalTxWithSwap };
 }
 
 export async function backfillTokenMetadata(

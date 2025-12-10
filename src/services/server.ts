@@ -302,6 +302,27 @@ export function calculateEnhancedMetrics(
 	};
 }
 
+const metricsCache = {
+	data: null as EnhancedMetrics | null,
+	lastUpdated: 0,
+	ttl: 10000, // 10 seconds
+};
+
+function getCachedMetrics(
+	db: Database.Database,
+	config: { currency: { decimals: number; symbol: string } },
+	options?: { includeEvents?: boolean; eventsLimit?: number; recentLimit?: number }
+): EnhancedMetrics {
+	const now = Date.now();
+	if (metricsCache.data && now - metricsCache.lastUpdated < metricsCache.ttl) {
+		return metricsCache.data;
+	}
+	const data = calculateEnhancedMetrics(db, config, options);
+	metricsCache.data = data;
+	metricsCache.lastUpdated = now;
+	return data;
+}
+
 export function startServer(
 	db: Database.Database,
 	config: { currency: { decimals: number; symbol: string } },
@@ -310,7 +331,7 @@ export function startServer(
 	const server = createServer((req, res) => {
 		if (req.url === "/metrics" && req.method === "GET") {
 			try {
-				const metrics = calculateEnhancedMetrics(db, config, {
+				const metrics = getCachedMetrics(db, config, {
 					includeEvents: ENV.INCLUDE_EVENTS,
 					eventsLimit: ENV.EVENTS_LIMIT,
 					recentLimit: ENV.RECENT_SWAPS_LIMIT,
