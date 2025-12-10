@@ -53,6 +53,52 @@ function parseArgs() {
 	};
 }
 
+const POLL_INTERVAL = 10000; // 10 seconds
+
+async function runPipeline(db: any, config: NetworkConfig, args: ReturnType<typeof parseArgs>) {
+	await scanLogs(db, config, args.incremental);
+
+	const { processed: pFees, inserted: iFees } = await backfillFees(db, config);
+	if (pFees > 0) {
+		console.log(`\n🧮 Fee backfill complete: ${iFees}/${pFees} inserted`);
+	}
+
+	const {
+		processed: pEvents,
+		inserted: iEvents,
+		txWithSwap,
+	} = await backfillSwapEvents(db, config);
+	if (pEvents > 0) {
+		if (iEvents === 0) {
+			console.log(
+				`🧩 Event backfill complete: ${iEvents}/${pEvents} inserted — no Swap events found in missing transactions (tx with swaps: ${txWithSwap}/${pEvents}).`
+			);
+		} else {
+			console.log(
+				`🧩 Event backfill complete: ${iEvents}/${pEvents} inserted (${txWithSwap} tx contained Swap events).`
+			);
+		}
+	}
+
+	const { processed: pTokens, inserted: iTokens } = await backfillTokenMetadata(db, config);
+	if (pTokens > 0) {
+		console.log(`🏷️  Token metadata backfill: ${iTokens}/${pTokens} inserted`);
+	}
+
+	const metrics = calculateEnhancedMetrics(db, config, {
+		includeEvents: ENV.INCLUDE_EVENTS,
+		eventsLimit: ENV.EVENTS_LIMIT,
+		recentLimit: ENV.RECENT_SWAPS_LIMIT,
+	});
+
+	if (args.export) {
+		writeFileSync(args.export, JSON.stringify(metrics, null, 2));
+		console.log(`\n💾 Exported metrics to ${args.export}`);
+	}
+
+	return metrics;
+}
+
 async function main() {
 	console.log("🌟 Scope (Modular Edition)\n");
 
@@ -70,65 +116,40 @@ async function main() {
 	const db = initDatabase(config.dbFile);
 
 	try {
-		await scanLogs(db, config, args.incremental);
-
-		const { processed: pFees, inserted: iFees } = await backfillFees(db, config);
-		if (pFees > 0) {
-			console.log(`\n🧮 Fee backfill complete: ${iFees}/${pFees} inserted`);
-		}
-
-		const {
-			processed: pEvents,
-			inserted: iEvents,
-			txWithSwap,
-		} = await backfillSwapEvents(db, config);
-		if (pEvents > 0) {
-			if (iEvents === 0) {
-				console.log(
-					`🧩 Event backfill complete: ${iEvents}/${pEvents} inserted — no Swap events found in missing transactions (tx with swaps: ${txWithSwap}/${pEvents}).`
-				);
-			} else {
-				console.log(
-					`🧩 Event backfill complete: ${iEvents}/${pEvents} inserted (${txWithSwap} tx contained Swap events).`
-				);
-			}
-		}
-
-		const { processed: pTokens, inserted: iTokens } = await backfillTokenMetadata(db, config);
-		if (pTokens > 0) {
-			console.log(`🏷️  Token metadata backfill: ${iTokens}/${pTokens} inserted`);
-		}
-
-		const metrics = calculateEnhancedMetrics(db, config, {
-			includeEvents: ENV.INCLUDE_EVENTS,
-			eventsLimit: ENV.EVENTS_LIMIT,
-			recentLimit: ENV.RECENT_SWAPS_LIMIT,
-		});
-
-		console.log("\n📈 Analytics Summary:");
-		console.log(`  Unique Users: ${metrics.uniqueUsers.toLocaleString()}`);
-		console.log(`  Total Transactions: ${metrics.uniqueTxCount.toLocaleString()}`);
-		console.log(`  Total Swaps: ${metrics.totalSwaps.toLocaleString()}`);
-		console.log(`  Total Fees: ${metrics.totalFees} ${config.currency.symbol}`);
-		console.log(`\n  📊 Volume by Token (Top 3 Inbound):`);
-		metrics.volumeByToken.inbound.slice(0, 3).forEach((v, i) => {
-			console.log(`    ${i + 1}. ${v.token.slice(0, 10)}...`);
-			console.log(`       Amount: ${v.normalizedAmount}`);
-			console.log(`       Swaps: ${v.swapCount.toLocaleString()}`);
-		});
-		console.log(
-			`\n  Top Token Pair: ${metrics.topTokenPairs[0]?.tokenIn.slice(0, 8)}... → ${metrics.topTokenPairs[0]?.tokenOut.slice(0, 8)}... (${metrics.topTokenPairs[0]?.swapCount ?? 0} swaps)`
-		);
-
-		if (args.export) {
-			writeFileSync(args.export, JSON.stringify(metrics, null, 2));
-			console.log(`\n💾 Exported metrics to ${args.export}`);
-		}
-
 		if (args.serve) {
 			startServer(db, config);
-			await new Promise(() => {});
+			// Run immediately once
+			await runPipeline(db, config, args);
+
+			console.log(`\n🔄 Starting stats poller (every ${POLL_INTERVAL / 1000}s)...`);
+
+			// Then loop forever
+			while (true) {
+				await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+				try {
+					await runPipeline(db, config, args);
+				} catch (err) {
+					console.error("Error in polling loop:", err);
+				}
+			}
 		} else {
+			const metrics = await runPipeline(db, config, args);
+
+			console.log("\n📈 Analytics Summary:");
+			console.log(`  Unique Users: ${metrics.uniqueUsers.toLocaleString()}`);
+			console.log(`  Total Transactions: ${metrics.uniqueTxCount.toLocaleString()}`);
+			console.log(`  Total Swaps: ${metrics.totalSwaps.toLocaleString()}`);
+			console.log(`  Total Fees: ${metrics.totalFees}`);
+			console.log(`\n  📊 Volume by Token (Top 3 Inbound):`);
+			metrics.volumeByToken.inbound.slice(0, 3).forEach((v, i) => {
+				console.log(`    ${i + 1}. ${v.token.slice(0, 10)}...`);
+				console.log(`       Amount: ${v.normalizedAmount}`);
+				console.log(`       Swaps: ${v.swapCount.toLocaleString()}`);
+			});
+			console.log(
+				`\n  Top Token Pair: ${metrics.topTokenPairs[0]?.tokenIn.slice(0, 8)}... → ${metrics.topTokenPairs[0]?.tokenOut.slice(0, 8)}... (${metrics.topTokenPairs[0]?.swapCount ?? 0} swaps)`
+			);
+
 			db.close();
 		}
 	} catch (error) {
