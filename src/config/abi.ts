@@ -56,14 +56,28 @@ export const citreaRouterAbi = [
 				type: "address",
 				internalType: "address",
 			},
-			{
-				name: "_surplusHandler",
-				type: "address",
-				internalType: "address",
-			},
 		],
 		outputs: [],
 		stateMutability: "nonpayable",
+	},
+	{
+		type: "function",
+		name: "nativeTokenSupport",
+		inputs: [
+			{
+				name: "",
+				type: "int24",
+				internalType: "int24",
+			},
+		],
+		outputs: [
+			{
+				name: "",
+				type: "bool",
+				internalType: "bool",
+			},
+		],
+		stateMutability: "view",
 	},
 	{
 		type: "function",
@@ -74,6 +88,26 @@ export const citreaRouterAbi = [
 				name: "",
 				type: "address",
 				internalType: "address",
+			},
+		],
+		stateMutability: "view",
+	},
+	{
+		type: "function",
+		name: "pause",
+		inputs: [],
+		outputs: [],
+		stateMutability: "nonpayable",
+	},
+	{
+		type: "function",
+		name: "paused",
+		inputs: [],
+		outputs: [
+			{
+				name: "",
+				type: "bool",
+				internalType: "bool",
 			},
 		],
 		stateMutability: "view",
@@ -108,6 +142,24 @@ export const citreaRouterAbi = [
 		type: "function",
 		name: "renounceOwnership",
 		inputs: [],
+		outputs: [],
+		stateMutability: "nonpayable",
+	},
+	{
+		type: "function",
+		name: "setNativeTokenSupport",
+		inputs: [
+			{
+				name: "protocol_id",
+				type: "int24",
+				internalType: "int24",
+			},
+			{
+				name: "support",
+				type: "bool",
+				internalType: "bool",
+			},
+		],
 		outputs: [],
 		stateMutability: "nonpayable",
 	},
@@ -242,6 +294,109 @@ export const citreaRouterAbi = [
 						internalType: "bytes",
 					},
 				],
+			},
+		],
+		outputs: [
+			{
+				name: "",
+				type: "uint256",
+				internalType: "uint256",
+			},
+		],
+		stateMutability: "payable",
+	},
+	{
+		type: "function",
+		name: "swapIntegrator",
+		inputs: [
+			{
+				name: "route",
+				type: "tuple",
+				internalType: "struct RouteParam",
+				components: [
+					{
+						name: "token_in",
+						type: "address",
+						internalType: "address",
+					},
+					{
+						name: "token_out",
+						type: "address",
+						internalType: "address",
+					},
+					{
+						name: "amount_in",
+						type: "uint256",
+						internalType: "uint256",
+					},
+					{
+						name: "amount_out",
+						type: "uint256",
+						internalType: "uint256",
+					},
+					{
+						name: "min_received",
+						type: "uint256",
+						internalType: "uint256",
+					},
+					{
+						name: "destination",
+						type: "address",
+						internalType: "address",
+					},
+					{
+						name: "swap_type",
+						type: "uint8",
+						internalType: "enum SwapType",
+					},
+				],
+			},
+			{
+				name: "swap_parameters",
+				type: "tuple[]",
+				internalType: "struct SwapParams[]",
+				components: [
+					{
+						name: "token_in",
+						type: "address",
+						internalType: "address",
+					},
+					{
+						name: "token_out",
+						type: "address",
+						internalType: "address",
+					},
+					{
+						name: "rate",
+						type: "uint32",
+						internalType: "uint32",
+					},
+					{
+						name: "protocol_id",
+						type: "int24",
+						internalType: "int24",
+					},
+					{
+						name: "pool_address",
+						type: "address",
+						internalType: "address",
+					},
+					{
+						name: "swap_type",
+						type: "uint8",
+						internalType: "enum SwapType",
+					},
+					{
+						name: "extra_data",
+						type: "bytes",
+						internalType: "bytes",
+					},
+				],
+			},
+			{
+				name: "integrator_data",
+				type: "bytes",
+				internalType: "bytes",
 			},
 		],
 		outputs: [
@@ -450,6 +605,13 @@ export const citreaRouterAbi = [
 		stateMutability: "nonpayable",
 	},
 	{
+		type: "function",
+		name: "unpause",
+		inputs: [],
+		outputs: [],
+		stateMutability: "nonpayable",
+	},
+	{
 		type: "event",
 		name: "AddHandler",
 		inputs: [
@@ -477,6 +639,37 @@ export const citreaRouterAbi = [
 				type: "uint64",
 				indexed: false,
 				internalType: "uint64",
+			},
+		],
+		anonymous: false,
+	},
+	{
+		type: "event",
+		name: "IntegratorFeeDistribution",
+		inputs: [
+			{
+				name: "integrator",
+				type: "address",
+				indexed: true,
+				internalType: "address",
+			},
+			{
+				name: "integrator_amount",
+				type: "uint256",
+				indexed: false,
+				internalType: "uint256",
+			},
+			{
+				name: "surplus_to_handler",
+				type: "uint256",
+				indexed: false,
+				internalType: "uint256",
+			},
+			{
+				name: "user_amount",
+				type: "uint256",
+				indexed: false,
+				internalType: "uint256",
 			},
 		],
 		anonymous: false,
@@ -521,7 +714,20 @@ export const citreaRouterAbi = [
 	},
 	{
 		type: "event",
-		name: "SetNativeEthSupport",
+		name: "Paused",
+		inputs: [
+			{
+				name: "account",
+				type: "address",
+				indexed: false,
+				internalType: "address",
+			},
+		],
+		anonymous: false,
+	},
+	{
+		type: "event",
+		name: "SetNativeTokenSupport",
 		inputs: [
 			{
 				name: "protocol_id",
@@ -595,6 +801,19 @@ export const citreaRouterAbi = [
 		anonymous: false,
 	},
 	{
+		type: "event",
+		name: "Unpaused",
+		inputs: [
+			{
+				name: "account",
+				type: "address",
+				indexed: false,
+				internalType: "address",
+			},
+		],
+		anonymous: false,
+	},
+	{
 		type: "error",
 		name: "AlreadySet",
 		inputs: [],
@@ -606,7 +825,22 @@ export const citreaRouterAbi = [
 	},
 	{
 		type: "error",
+		name: "AmountTooSmallForRate",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "AmountZero",
+		inputs: [],
+	},
+	{
+		type: "error",
 		name: "ArrayLengthsMismatching",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "BipsExceedsMaximum",
 		inputs: [],
 	},
 	{
@@ -616,7 +850,37 @@ export const citreaRouterAbi = [
 	},
 	{
 		type: "error",
+		name: "CannotTakeBothFeeAndSurplus",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "DeadlineExpired",
+		inputs: [],
+	},
+	{
+		type: "error",
 		name: "DestinationZero",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "EmptyArray",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "EnforcedPause",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "ExpectedPause",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "FeePercentageExceedsMaximum",
 		inputs: [],
 	},
 	{
@@ -673,6 +937,21 @@ export const citreaRouterAbi = [
 	},
 	{
 		type: "error",
+		name: "RateExceedsMaximum",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "RateZero",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "ReentrancyGuardReentrantCall",
+		inputs: [],
+	},
+	{
+		type: "error",
 		name: "SafeERC20FailedOperation",
 		inputs: [
 			{
@@ -684,7 +963,17 @@ export const citreaRouterAbi = [
 	},
 	{
 		type: "error",
+		name: "SurplusPercentageExceedsMaximum",
+		inputs: [],
+	},
+	{
+		type: "error",
 		name: "SwapFailed",
+		inputs: [],
+	},
+	{
+		type: "error",
+		name: "SwapHandlerNotSet",
 		inputs: [],
 	},
 	{
@@ -694,7 +983,7 @@ export const citreaRouterAbi = [
 	},
 	{
 		type: "error",
-		name: "WrongRoute",
+		name: "TooManyTokens",
 		inputs: [],
 	},
 ] as const;
@@ -1503,4 +1792,4 @@ export const monadRouterAbi = [
 		name: "TooManyTokens",
 		inputs: [],
 	},
-];
+] as const;

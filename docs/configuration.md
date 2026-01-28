@@ -19,21 +19,21 @@ nano .env
 #### CITREA_RPC_URL
 
 - **Type:** String (URL)
-- **Default:** `https://rpc.testnet.citrea.xyz`
-- **Description:** RPC endpoint for Citrea Testnet
+- **Default:** `https://rpc.mainnet.citrea.xyz`
+- **Description:** RPC endpoint for Citrea Mainnet
 
 ```bash
-CITREA_RPC_URL=https://rpc.testnet.citrea.xyz
+CITREA_RPC_URL=https://rpc.mainnet.citrea.xyz
 ```
 
 #### CITREA_CHAIN_ID
 
 - **Type:** Number
-- **Default:** `5115`
-- **Description:** Citrea Testnet chain ID
+- **Default:** `4114`
+- **Description:** Citrea Mainnet chain ID
 
 ```bash
-CITREA_CHAIN_ID=5115
+CITREA_CHAIN_ID=4114
 ```
 
 #### MONAD_RPC_URL
@@ -71,11 +71,11 @@ MONAD_CONTRACT_ADDRESS=0x274602a953847d807231d2370072f5f4e4594b44
 #### CONTRACT_ADDRESS
 
 - **Type:** String (Address)
-- **Default:** `0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556`
+- **Default:** `0x274602a953847d807231d2370072F5f4E4594B44`
 - **Description:** Default contract address to analyze
 
 ```bash
-CONTRACT_ADDRESS=0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556
+CONTRACT_ADDRESS=0x274602a953847d807231d2370072F5f4E4594B44
 ```
 
 **Note:** Can be overridden with `--address` CLI parameter
@@ -254,9 +254,9 @@ pnpm start -- --incremental true --serve true
 
 | Variable             | Default                                    | Type    |
 | -------------------- | ------------------------------------------ | ------- |
-| CITREA_RPC_URL       | https://rpc.testnet.citrea.xyz             | String  |
-| CITREA_CHAIN_ID      | 5115                                       | Number  |
-| CONTRACT_ADDRESS     | 0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556 | Address |
+| CITREA_RPC_URL       | https://rpc.mainnet.citrea.xyz             | String  |
+| CITREA_CHAIN_ID      | 4114                                       | Number  |
+| CONTRACT_ADDRESS     | 0x274602a953847d807231d2370072F5f4E4594B44 | Address |
 | CITREA_DATABASE_FILE | citrea_cache.db                            | String  |
 | BATCH_SIZE           | 1000                                       | Number  |
 | MAX_RETRIES          | 3                                          | Number  |

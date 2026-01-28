@@ -12,10 +12,10 @@ export const ENV = {
 	RECENT_SWAPS_LIMIT: parseInt(process.env.RECENT_SWAPS_LIMIT || "10", 10),
 
 	// Citrea
-	CITREA_RPC_URL: process.env.CITREA_RPC_URL || "https://rpc.testnet.citrea.xyz",
-	CITREA_CHAIN_ID: parseInt(process.env.CITREA_CHAIN_ID || "5115", 10),
+	CITREA_RPC_URL: process.env.CITREA_RPC_URL || "https://rpc.mainnet.citrea.xyz",
+	CITREA_CHAIN_ID: parseInt(process.env.CITREA_CHAIN_ID || "4114", 10),
 	CITREA_CONTRACT_ADDRESS: (process.env.CONTRACT_ADDRESS ||
-		"0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556") as Address,
+		"0x274602a953847d807231d2370072F5f4E4594B44") as Address,
 	CITREA_DB_FILE:
 		process.env.CITREA_DATABASE_FILE || process.env.DATABASE_FILE || "citrea_cache.db",
 

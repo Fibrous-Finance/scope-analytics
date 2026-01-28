@@ -11,6 +11,7 @@ import {
 	backfillTokenMetadata,
 } from "./services/indexer";
 import { startServer, calculateEnhancedMetrics } from "./services/server";
+import { RealtimeIndexer } from "./services/realtime";
 import { NETWORKS, type NetworkConfig } from "./config/networks";
 import { ENV } from "./config/env";
 
@@ -50,6 +51,8 @@ function parseArgs() {
 		incremental: args.includes("--incremental") || args.includes("-i"),
 		serve: args.includes("--serve") || args.includes("-s"),
 		export: args.indexOf("--export") !== -1 ? args[args.indexOf("--export") + 1] : undefined,
+		realtime: args.includes("--realtime") || args.includes("-r"),
+		hybrid: args.includes("--hybrid") || args.includes("-h"),
 	};
 }
 

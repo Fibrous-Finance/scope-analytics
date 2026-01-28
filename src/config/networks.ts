@@ -17,14 +17,14 @@ export interface NetworkConfig {
 export const NETWORKS: Record<string, NetworkConfig> = {
 	citrea: {
 		id: "citrea",
-		name: "Citrea Testnet",
+		name: "Citrea Mainnet",
 		rpcUrl: ENV.CITREA_RPC_URL,
 		chainId: ENV.CITREA_CHAIN_ID,
 		contractAddress: ENV.CITREA_CONTRACT_ADDRESS,
 		dbFile: ENV.CITREA_DB_FILE,
 		abi: citreaRouterAbi,
-		explorer: "https://explorer.testnet.citrea.xyz",
-		currency: { name: "cBTC", symbol: "cBTC", decimals: 18 },
+		explorer: "https://explorer.mainnet.citrea.xyz",
+		currency: { name: "Citrea Bitcoin", symbol: "cBTC", decimals: 18 },
 	},
 	monad: {
 		id: "monad",

@@ -4,7 +4,7 @@ Analyze smart contract activity on multiple EVM networks (Citrea, Monad, etc.) w
 
 ## Features
 
-- **Multi-Network Support** - Support for Citrea Testnet and Monad Mainnet
+- **Multi-Network Support** - Support for Citrea Mainnet and Monad Mainnet
 - **Interactive Mode** - Easy network selection via CLI
 - **Incremental Scanning** - Only scans new blocks since last run
 - **SQLite Cache** - Persistent storage with WAL mode (separate DB per network)
@@ -41,9 +41,9 @@ pnpm start
 Edit the `.env` file:
 
 ```bash
-# Citrea Testnet
-CITREA_RPC_URL=https://rpc.testnet.citrea.xyz
-CITREA_CHAIN_ID=5115
+# Citrea Mainnet
+CITREA_RPC_URL=https://rpc.mainnet.citrea.xyz
+CITREA_CHAIN_ID=4114
 
 # Monad Mainnet
 MONAD_RPC_URL=https://monad-mainnet.g.alchemy.com/v2/...
@@ -51,7 +51,7 @@ MONAD_CHAIN_ID=143
 MONAD_CONTRACT_ADDRESS=0x274602a953847d807231d2370072f5f4e4594b44
 
 # Contract to analyze (Citrea Default)
-CONTRACT_ADDRESS=0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556
+CONTRACT_ADDRESS=0x274602a953847d807231d2370072F5f4E4594B44
 
 # Database
 CITREA_DATABASE_FILE=citrea_cache.db

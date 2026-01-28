@@ -84,7 +84,7 @@ Complete documentation for Scope.
 
 **Features**:
 
-- ✅ **Multi-Network Support** (Citrea Testnet & Monad Mainnet)
+- ✅ **Multi-Network Support** (Citrea Mainnet & Monad Mainnet)
 - ✅ **Interactive CLI** with network selection
 - ✅ **Modular Architecture** (`src/` directory structure)
 - ✅ Enhanced version as default (`pnpm start`)

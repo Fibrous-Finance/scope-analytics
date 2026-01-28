@@ -21,10 +21,10 @@ if [ ! -f ".env" ]; then
     else
         echo "⚠️  No .env.example found, creating minimal .env"
         cat > .env << EOF
-# Citrea Testnet Configuration
-CITREA_RPC_URL=https://rpc.testnet.citrea.xyz
-CITREA_CHAIN_ID=5115
-CONTRACT_ADDRESS=0x72B1fC6b54733250F4e18dA4A20Bb2DCbC598556
+# Citrea Mainnet Configuration
+CITREA_RPC_URL=https://rpc.mainnet.citrea.xyz
+CITREA_CHAIN_ID=4114
+CONTRACT_ADDRESS=0x274602a953847d807231d2370072F5f4E4594B44
 CITREA_DATABASE_FILE=citrea_cache.db
 MONAD_DATABASE_FILE=monad_cache.db
 BATCH_SIZE=1000
@@ -38,7 +38,7 @@ fi
 
 # Step 1: Interactive Start
 echo "📊 Step 1: Running analytics (Interactive Mode)..."
-echo "   Select 'Citrea Testnet' when prompted."
+echo "   Select 'Citrea Mainnet' when prompted."
 pnpm start
 echo ""
 
