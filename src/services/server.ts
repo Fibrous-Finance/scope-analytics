@@ -100,13 +100,13 @@ export function calculateEnhancedMetrics(
 
 	const inboundVolumeRows = db
 		.prepare(
-			`SELECT token_in, SUM(CAST(amount_in AS REAL)) as total, COUNT(*) as cnt FROM swap_events GROUP BY token_in ORDER BY total DESC`
+			`SELECT token_in, SUM(CAST(amount_in AS REAL)) as total, COUNT(*) as cnt FROM swap_events GROUP BY token_in ORDER BY cnt DESC`
 		)
 		.all() as Array<{ token_in: string; total: number; cnt: number }>;
 
 	const outboundVolumeRows = db
 		.prepare(
-			`SELECT token_out, SUM(CAST(amount_out AS REAL)) as total, COUNT(*) as cnt FROM swap_events GROUP BY token_out ORDER BY total DESC`
+			`SELECT token_out, SUM(CAST(amount_out AS REAL)) as total, COUNT(*) as cnt FROM swap_events GROUP BY token_out ORDER BY cnt DESC`
 		)
 		.all() as Array<{ token_out: string; total: number; cnt: number }>;
 
