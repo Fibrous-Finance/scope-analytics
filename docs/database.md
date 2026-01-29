@@ -22,6 +22,8 @@ Parsed Swap events. Supports multiple swaps per transaction.
 - `sender`: User initiating the swap.
 - `token_in` / `token_out`: Token contract addresses.
 - `amount_in` / `amount_out`: Raw amounts (wei).
+- `amount_out_min`: User's minimum received limit (from calldata).
+- `execution_quality`: Safety margin percentage (Slippage Analysis).
 
 ### `fees`
 

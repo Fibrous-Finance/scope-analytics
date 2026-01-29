@@ -1,9 +1,16 @@
 import type Database from "better-sqlite3";
-import { createPublicClient, http, type Address, type Log, decodeEventLog } from "viem";
+import {
+	createPublicClient,
+	http,
+	type Address,
+	type Log,
+	decodeEventLog,
+	decodeFunctionData,
+} from "viem";
 import { getMeta, setMeta } from "../database";
 import { ENV } from "../config/env";
 import { getChainDefinition, type NetworkConfig } from "../config/networks";
-import { erc20Abi } from "../config/abi";
+import { erc20Abi, citreaRouterAbi } from "../config/abi";
 import { sanitizeDecimals } from "../utils/format";
 import { processInChunks } from "../utils/batch";
 import {
@@ -21,6 +28,7 @@ export interface SwapEventData {
 	token_in: string;
 	token_out: string;
 	destination: string;
+	min_received?: bigint; // Added for slippage
 }
 
 function createClient(config: NetworkConfig) {
@@ -111,9 +119,10 @@ export async function scanLogs(
 				const logData = await Promise.all(
 					logs.map(async (log) => {
 						try {
-							const [receipt, block] = await Promise.all([
+							const [receipt, block, tx] = await Promise.all([
 								client.getTransactionReceipt({ hash: log.transactionHash! }),
 								client.getBlock({ blockNumber: log.blockNumber! }),
+								client.getTransaction({ hash: log.transactionHash! }),
 							]);
 
 							const feeWei =
@@ -135,7 +144,7 @@ export async function scanLogs(
 									});
 									if (decoded.eventName === "Swap") {
 										const args = decoded.args as unknown as SwapEventData;
-										decodedSwaps.push({
+										const swapData = {
 											tx_hash: log.transactionHash!,
 											log_index:
 												typeof log.logIndex !== "undefined"
@@ -149,7 +158,39 @@ export async function scanLogs(
 											token_out: args.token_out.toLowerCase(),
 											destination: args.destination.toLowerCase(),
 											timestamp: Number(block.timestamp),
-										});
+										};
+
+										// Slippage Calculation
+										try {
+											const decodedTx = decodeFunctionData({
+												abi: citreaRouterAbi,
+												data: tx.input,
+											});
+
+											if (decodedTx.functionName === "swap") {
+												const route = (decodedTx.args as any)[0]; // RouteParam is 1st arg
+												if (route && route.min_received) {
+													const minReceived = BigInt(route.min_received);
+													const amountOut = BigInt(args.amount_out);
+
+													if (amountOut > 0n) {
+														const diff = amountOut - minReceived;
+														const quality =
+															Number((diff * 10000n) / amountOut) /
+															100;
+
+														(swapData as any).amount_out_min =
+															minReceived.toString();
+														(swapData as any).execution_quality =
+															quality;
+													}
+												}
+											}
+										} catch (err) {
+											// Failed to decode input or not a router swap
+										}
+
+										decodedSwaps.push(swapData);
 									}
 								} catch {
 									/* Not a swap event or decoding failed */
@@ -268,6 +309,8 @@ export async function scanLogs(
 									token_out: swap.token_out,
 									destination: swap.destination,
 									timestamp: swap.timestamp,
+									amount_out_min: (swap as any).amount_out_min,
+									execution_quality: (swap as any).execution_quality,
 								});
 								processedSwaps++;
 							}

@@ -1,5 +1,13 @@
 import type Database from "better-sqlite3";
-import { createPublicClient, webSocket, decodeEventLog, type Address, type Log } from "viem";
+import {
+	createPublicClient,
+	webSocket,
+	decodeEventLog,
+	decodeFunctionData,
+	type Address,
+	type Log,
+} from "viem";
+import { citreaRouterAbi } from "../config/abi";
 import { getChainDefinition, type NetworkConfig } from "../config/networks";
 import { insertLog, insertFee, insertSwap } from "./storage";
 import { ENV } from "../config/env";
@@ -161,9 +169,10 @@ export class RealtimeIndexer {
 			const args = decoded.args as unknown as SwapEventData;
 
 			// Get transaction details
-			const [receipt, block] = await Promise.all([
+			const [receipt, block, tx] = await Promise.all([
 				this.wsClient!.getTransactionReceipt({ hash: log.transactionHash! }),
 				this.wsClient!.getBlock({ blockNumber: log.blockNumber! }),
+				this.wsClient!.getTransaction({ hash: log.transactionHash! }),
 			]);
 
 			// Calculate fee
@@ -185,7 +194,36 @@ export class RealtimeIndexer {
 					fee_wei: feeWei.toString(),
 				});
 
-				insertSwap(this.db, {
+				let amountOutMin: string | undefined;
+				let executionQuality: number | undefined;
+
+				// Slippage Calculation
+				try {
+					const decodedTx = decodeFunctionData({
+						abi: citreaRouterAbi,
+						data: tx.input,
+					});
+
+					if (decodedTx.functionName === "swap") {
+						const route = (decodedTx.args as any)[0];
+						if (route && route.min_received) {
+							const minReceived = BigInt(route.min_received);
+							const amountOut = BigInt(args.amount_out);
+
+							if (amountOut > 0n) {
+								const diff = amountOut - minReceived;
+								const quality = Number((diff * 10000n) / amountOut) / 100;
+
+								amountOutMin = minReceived.toString();
+								executionQuality = quality;
+							}
+						}
+					}
+				} catch (err) {
+					// Failed to decode input or not a router swap
+				}
+
+				const swapData: any = {
 					tx_hash: log.transactionHash!,
 					log_index: typeof log.logIndex !== "undefined" ? Number(log.logIndex) : 0,
 					block_number: Number(log.blockNumber!),
@@ -196,7 +234,12 @@ export class RealtimeIndexer {
 					token_out: args.token_out.toLowerCase(),
 					destination: args.destination.toLowerCase(),
 					timestamp: Number(block.timestamp),
-				});
+				};
+
+				if (amountOutMin) swapData.amount_out_min = amountOutMin;
+				if (executionQuality !== undefined) swapData.execution_quality = executionQuality;
+
+				insertSwap(this.db, swapData);
 			})();
 
 			// Create processed event

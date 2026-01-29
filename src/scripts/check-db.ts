@@ -117,6 +117,37 @@ try {
 		});
 	}
 
+	// Slippage / Network Health
+	const slippageStats = db
+		.prepare(
+			`
+    SELECT 
+      COUNT(*) as total_analyzed,
+      AVG(execution_quality) as avg_quality,
+      SUM(CASE WHEN execution_quality < 0.5 THEN 1 ELSE 0 END) as risky_count
+    FROM swap_events
+    WHERE execution_quality IS NOT NULL
+  `
+		)
+		.get() as {
+		total_analyzed: number;
+		avg_quality: number | null;
+		risky_count: number | null;
+	};
+
+	if (slippageStats && slippageStats.total_analyzed > 0) {
+		const avgQuality = slippageStats.avg_quality ?? 0;
+		const riskyCount = slippageStats.risky_count ?? 0;
+		const safeCount = slippageStats.total_analyzed - riskyCount;
+
+		console.log("\n[Network Health] Slippage Analysis:");
+		console.log("═══════════════════════════════════════════════════");
+		console.log(`  Analyzed Swaps: ${slippageStats.total_analyzed.toLocaleString()}`);
+		console.log(`  Avg. Safety Margin: ${avgQuality.toFixed(2)}%`);
+		console.log(`  Safe Executions: ${safeCount.toLocaleString()}`);
+		console.log(`  Risky Executions: ${riskyCount.toLocaleString()} (<0.5% margin)`);
+	}
+
 	// Top token pairs
 	const topPairs = db
 		.prepare(

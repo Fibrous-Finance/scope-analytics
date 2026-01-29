@@ -17,13 +17,14 @@ Environment variable reference for `.env`.
 
 ## Application Settings
 
-| Variable      | Description                                       | Default                |
-| :------------ | :------------------------------------------------ | :--------------------- |
-| `BATCH_SIZE`  | Blocks per batch scan. Lower if RPC errors occur. | `1000`                 |
-| `MAX_RETRIES` | Retry attempts for failed RPC calls.              | `3`                    |
-| `DB_PATH`     | Custom path for SQLite database.                  | `./[network]_cache.db` |
-| `API_PORT`    | Port for the metrics API server.                  | `3000`                 |
-| `API_HOST`    | Host binding for API server.                      | `localhost`            |
+| Variable               | Description                                       | Default           |
+| :--------------------- | :------------------------------------------------ | :---------------- |
+| `BATCH_SIZE`           | Blocks per batch scan. Lower if RPC errors occur. | `1000`            |
+| `MAX_RETRIES`          | Retry attempts for failed RPC calls.              | `3`               |
+| `CITREA_DATABASE_FILE` | Database file for Citrea.                         | `citrea_cache.db` |
+| `MONAD_DATABASE_FILE`  | Database file for Monad.                          | `monad_cache.db`  |
+| `API_PORT`             | Port for the metrics API server.                  | `3000`            |
+| `API_HOST`             | Host binding for API server.                      | `localhost`       |
 
 ## CLI Overrides
 
@@ -37,5 +38,5 @@ pnpm start -- --address 0x123...
 pnpm start -- --network citrea
 
 # Enable Realtime Mode
-pnpm start -- --realtime
+pnpm realtime
 ```

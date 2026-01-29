@@ -7,6 +7,7 @@ High-performance, modular blockchain indexer and analytics engine for **Citrea**
 - **Hybrid Indexing**: Seamlessly combines historical backfilling with real-time WebSocket monitoring.
 - **Multi-Network**: Built-in support for Citrea and Monad mainnets.
 - **Analytics Engine**: Real-time calculation of volumes, fees, and unique user activity.
+- **Slippage Analysis**: Introspective analysis of transaction execution quality vs user intent.
 - **Persistent Storage**: SQLite with WAL mode for robust, local data caching.
 - **API Server**: RESTful interface to serve metrics to dashboards.
 
@@ -43,13 +44,13 @@ Run the automated setup script to install dependencies, configure the environmen
 
 ## Command Reference
 
-| Command                                          | Description                          |
-| :----------------------------------------------- | :----------------------------------- |
-| `pnpm start`                                     | Interactive mode (Recommended).      |
-| `pnpm start -- --network citrea --realtime`      | Listen for live events only.         |
-| `pnpm start -- --network monad --hybrid --serve` | Backfill + Realtime + API Server.    |
-| `pnpm db:check`                                  | View database statistics and health. |
-| `pnpm export`                                    | Export metrics to `analytics.json`.  |
+| Command         | Description                          |
+| :-------------- | :----------------------------------- |
+| `pnpm start`    | Interactive mode (Recommended).      |
+| `pnpm realtime` | Listen for live events only.         |
+| `pnpm hybrid`   | Backfill + Realtime + API Server.    |
+| `pnpm db:check` | View database statistics and health. |
+| `pnpm export`   | Export metrics to `analytics.json`.  |
 
 ## Documentation
 
@@ -67,6 +68,11 @@ The server exposes a **GET** `/metrics` endpoint:
   "totalSwaps": 137365,
   "totalFees": "123.456789 cBTC",
   "dailyStats": [...],
+  "executionQuality": {
+    "averageMargin": "2.99%",
+    "riskyCount": 0,
+    "safeCount": 8
+  },
   "recentSwaps": [...]
 }
 ```

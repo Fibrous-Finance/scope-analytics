@@ -24,17 +24,25 @@ pnpm start
 Perfect for production. Fills gaps on restart, then stays live.
 
 ```bash
-pnpm start -- --network citrea --hybrid --serve
+# Start hybrid indexing AND the API server
+pnpm hybrid --serve
 ```
 
-**2. Quick Analysis (Export)**
-Dump current metrics to a file without starting a server.
+**2. Realtime Only**
+Skip backfill and listen for new events immediately.
 
 ```bash
-pnpm export -- --network monad
+pnpm realtime
 ```
 
-**3. Development (Reset)**
+**3. Database Health Check**
+View statistics and record counts.
+
+```bash
+pnpm db:check
+```
+
+**4. Development (Reset)**
 Clear database and start fresh.
 
 ```bash

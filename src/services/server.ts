@@ -57,6 +57,11 @@ interface EnhancedMetrics {
 	}>;
 	swapEvents?: Array<SwapEventData>;
 	range: { firstBlock: number | null; lastBlock: number | null; lastUpdatedAt: string | null };
+	executionQuality: {
+		averageMargin: string;
+		riskyCount: number;
+		safeCount: number;
+	};
 }
 
 export function calculateEnhancedMetrics(
@@ -300,6 +305,24 @@ export function calculateEnhancedMetrics(
 		};
 	});
 
+	// Slippage Analysis
+	const slippageStats = db
+		.prepare(
+			`
+    SELECT 
+      COUNT(*) as total,
+      AVG(execution_quality) as avgQuality,
+      SUM(CASE WHEN execution_quality < 0.5 THEN 1 ELSE 0 END) as riskyCount
+    FROM swap_events
+    WHERE execution_quality IS NOT NULL
+  `
+		)
+		.get() as { total: number; avgQuality: number | null; riskyCount: number | null };
+
+	const avgQuality = slippageStats.avgQuality ?? 0;
+	const riskyCount = slippageStats.riskyCount ?? 0;
+	const safeCount = (slippageStats.total ?? 0) - riskyCount;
+
 	return {
 		uniqueUsers: uniqueUsers.count,
 		uniqueTxCount: uniqueTxCount.count,
@@ -312,6 +335,11 @@ export function calculateEnhancedMetrics(
 		recentSwaps,
 		...(includeEvents && swapEvents ? { swapEvents } : {}),
 		range,
+		executionQuality: {
+			averageMargin: `${avgQuality.toFixed(2)}%`,
+			riskyCount,
+			safeCount,
+		},
 	};
 }
 

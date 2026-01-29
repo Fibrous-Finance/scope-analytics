@@ -29,6 +29,8 @@ export interface SwapData {
 	token_out: string;
 	destination: string;
 	timestamp: number;
+	amount_out_min?: string;
+	execution_quality?: number;
 }
 
 export function insertLog(db: Database.Database, data: LogData) {
@@ -50,8 +52,8 @@ export function insertFee(db: Database.Database, data: FeeData) {
 export function insertSwap(db: Database.Database, data: SwapData) {
 	const stmt = db.prepare(`
     INSERT OR IGNORE INTO swap_events 
-    (tx_hash, log_index, block_number, sender, amount_in, amount_out, token_in, token_out, destination, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (tx_hash, log_index, block_number, sender, amount_in, amount_out, token_in, token_out, destination, timestamp, amount_out_min, execution_quality)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 	stmt.run(
 		data.tx_hash,
@@ -63,7 +65,9 @@ export function insertSwap(db: Database.Database, data: SwapData) {
 		data.token_in,
 		data.token_out,
 		data.destination,
-		data.timestamp
+		data.timestamp,
+		data.amount_out_min || null,
+		data.execution_quality || null
 	);
 }
 
@@ -106,8 +110,8 @@ export function batchInsertFees(db: Database.Database, fees: FeeData[]) {
 export function batchInsertSwaps(db: Database.Database, swaps: SwapData[]) {
 	const stmt = db.prepare(`
     INSERT OR IGNORE INTO swap_events 
-    (tx_hash, log_index, block_number, sender, amount_in, amount_out, token_in, token_out, destination, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    (tx_hash, log_index, block_number, sender, amount_in, amount_out, token_in, token_out, destination, timestamp, amount_out_min, execution_quality)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
 	const insertMany = db.transaction((items: SwapData[]) => {
@@ -122,7 +126,9 @@ export function batchInsertSwaps(db: Database.Database, swaps: SwapData[]) {
 				item.token_in,
 				item.token_out,
 				item.destination,
-				item.timestamp
+				item.timestamp,
+				item.amount_out_min || null,
+				item.execution_quality || null
 			);
 		}
 	});

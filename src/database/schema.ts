@@ -92,4 +92,15 @@ export function createTables(db: Database.Database) {
           CREATE INDEX IF NOT EXISTS idx_sender ON swap_events(sender);
         `);
 	} catch {}
+
+	try {
+		const cols = db.prepare("PRAGMA table_info(swap_events)").all() as Array<{ name: string }>;
+		const hasSlippage = cols.some((c) => c.name.toLowerCase() === "amount_out_min");
+		if (!hasSlippage) {
+			db.exec(`
+				ALTER TABLE swap_events ADD COLUMN amount_out_min TEXT;
+				ALTER TABLE swap_events ADD COLUMN execution_quality REAL;
+			`);
+		}
+	} catch {}
 }
