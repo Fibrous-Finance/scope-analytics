@@ -263,9 +263,8 @@ export class RealtimeIndexer {
 
 		// 1. Initial batch scan
 		console.log("📊 Step 1: Initial batch scan...");
-		const { scanLogs, backfillFees, backfillSwapEvents, backfillTokenMetadata } = await import(
-			"./indexer"
-		);
+		const { scanLogs, backfillFees, backfillSwapEvents, backfillTokenMetadata } =
+			await import("./indexer");
 
 		await scanLogs(this.db, this.config, true);
 		await backfillFees(this.db, this.config);

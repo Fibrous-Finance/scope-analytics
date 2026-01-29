@@ -211,11 +211,24 @@ export function calculateEnhancedMetrics(
 		dailyStatsEventRows.map((r) => [r.day, r.swapsEvent ?? 0])
 	);
 
+	const dailyStatsTxRows = db
+		.prepare(
+			`SELECT strftime('%Y-%m-%d', s.timestamp, 'unixepoch') AS day,
+                    COUNT(DISTINCT tx_hash) AS swapsTx
+             FROM swap_events s
+             GROUP BY day
+             ORDER BY day DESC`
+		)
+		.all() as Array<{ day: string; swapsTx: number }>;
+	const dailyTxMap = new Map<string, number>(
+		dailyStatsTxRows.map((r) => [r.day, r.swapsTx ?? 0])
+	);
+
 	const dailyStats = dailyStatsRows.map((r) => ({
 		day: r.day,
 		tx: r.tx,
 		uniqueUsers: r.uniqueUsers,
-		swapsTx: 0, // Simplified for now
+		swapsTx: dailyTxMap.get(r.day) ?? 0,
 		swapsEvent: dailyEventMap.get(r.day) ?? 0,
 		fees: `${formatAmount(feesByDayMap.get(r.day) ?? 0n, config.currency.decimals, 6)} ${config.currency.symbol}`,
 	}));
