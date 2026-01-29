@@ -362,6 +362,6 @@ export function startServer(
 	});
 
 	server.listen(port, () => {
-		console.log(`\n🚀 Server running at http://${ENV.API_HOST}:${port}/metrics`);
+		console.log(`\n[Server] Server running at http://${ENV.API_HOST}:${port}/metrics`);
 	});
 }

@@ -53,6 +53,7 @@ function parseArgs() {
 		export: args.indexOf("--export") !== -1 ? args[args.indexOf("--export") + 1] : undefined,
 		realtime: args.includes("--realtime") || args.includes("-r"),
 		hybrid: args.includes("--hybrid") || args.includes("-h"),
+		address: args.indexOf("--address") !== -1 ? args[args.indexOf("--address") + 1] : undefined,
 	};
 }
 
@@ -63,7 +64,7 @@ async function runPipeline(db: any, config: NetworkConfig, args: ReturnType<type
 
 	const { processed: pFees, inserted: iFees } = await backfillFees(db, config);
 	if (pFees > 0) {
-		console.log(`\n🧮 Fee backfill complete: ${iFees}/${pFees} inserted`);
+		console.log(`\n[Fee Backfill] Fee backfill complete: ${iFees}/${pFees} inserted`);
 	}
 
 	const {
@@ -74,18 +75,18 @@ async function runPipeline(db: any, config: NetworkConfig, args: ReturnType<type
 	if (pEvents > 0) {
 		if (iEvents === 0) {
 			console.log(
-				`🧩 Event backfill complete: ${iEvents}/${pEvents} inserted — no Swap events found in missing transactions (tx with swaps: ${txWithSwap}/${pEvents}).`
+				`[Event Backfill] Event backfill complete: ${iEvents}/${pEvents} inserted — no Swap events found in missing transactions (tx with swaps: ${txWithSwap}/${pEvents}).`
 			);
 		} else {
 			console.log(
-				`🧩 Event backfill complete: ${iEvents}/${pEvents} inserted (${txWithSwap} tx contained Swap events).`
+				`[Event Backfill] Event backfill complete: ${iEvents}/${pEvents} inserted (${txWithSwap} tx contained Swap events).`
 			);
 		}
 	}
 
 	const { processed: pTokens, inserted: iTokens } = await backfillTokenMetadata(db, config);
 	if (pTokens > 0) {
-		console.log(`🏷️  Token metadata backfill: ${iTokens}/${pTokens} inserted`);
+		console.log(`[Token Metadata] Token metadata backfill: ${iTokens}/${pTokens} inserted`);
 	}
 
 	const metrics = calculateEnhancedMetrics(db, config, {
@@ -96,35 +97,60 @@ async function runPipeline(db: any, config: NetworkConfig, args: ReturnType<type
 
 	if (args.export) {
 		writeFileSync(args.export, JSON.stringify(metrics, null, 2));
-		console.log(`\n💾 Exported metrics to ${args.export}`);
+		console.log(`\n[Export] Exported metrics to ${args.export}`);
 	}
 
 	return metrics;
 }
 
 async function main() {
-	console.log("🌟 Scope (Modular Edition)\n");
+	console.log("[Scope] Scope (Modular Edition)\n");
 
 	const config = await selectNetwork();
 	const args = parseArgs();
+
+	if (args.address) {
+		config.contractAddress = args.address as any;
+	}
 
 	console.log("Configuration:");
 	console.log(`  Network: ${config.name}`);
 	console.log(`  Contract: ${config.contractAddress}`);
 	console.log(`  Incremental: ${args.incremental}`);
 	console.log(`  Serve API: ${args.serve}`);
+	console.log(`  Realtime: ${args.realtime}`);
+	console.log(`  Hybrid: ${args.hybrid}`);
 	if (args.export) console.log(`  Export to: ${args.export}`);
 	console.log();
 
 	const db = initDatabase(config.dbFile);
 
 	try {
-		if (args.serve) {
+		if (args.hybrid || args.realtime) {
+			const indexer = new RealtimeIndexer(db, config);
+			await indexer.connect();
+
+			if (args.serve) {
+				startServer(db, config);
+			}
+
+			if (args.hybrid) {
+				await indexer.startHybridMode();
+			} else {
+				// Realtime only
+				await indexer.watchSwapEvents();
+			}
+
+			console.log("\n[Realtime] Realtime indexer active. Press Ctrl+C to exit.");
+
+			// Keep process alive
+			await new Promise(() => {});
+		} else if (args.serve) {
 			startServer(db, config);
 			// Run immediately once
 			await runPipeline(db, config, args);
 
-			console.log(`\n🔄 Starting stats poller (every ${POLL_INTERVAL / 1000}s)...`);
+			console.log(`\n[Polling] Starting stats poller (every ${POLL_INTERVAL / 1000}s)...`);
 
 			// Then loop forever
 			while (true) {
@@ -138,12 +164,12 @@ async function main() {
 		} else {
 			const metrics = await runPipeline(db, config, args);
 
-			console.log("\n📈 Analytics Summary:");
+			console.log("\n[Analytics] Analytics Summary:");
 			console.log(`  Unique Users: ${metrics.uniqueUsers.toLocaleString()}`);
 			console.log(`  Total Transactions: ${metrics.uniqueTxCount.toLocaleString()}`);
 			console.log(`  Total Swaps: ${metrics.totalSwaps.toLocaleString()}`);
 			console.log(`  Total Fees: ${metrics.totalFees}`);
-			console.log(`\n  📊 Volume by Token (Top 3 Inbound):`);
+			console.log(`\n  [Volume] Volume by Token (Top 3 Inbound):`);
 			metrics.volumeByToken.inbound.slice(0, 3).forEach((v, i) => {
 				console.log(`    ${i + 1}. ${v.token.slice(0, 10)}...`);
 				console.log(`       Amount: ${v.normalizedAmount}`);
@@ -156,7 +182,7 @@ async function main() {
 			db.close();
 		}
 	} catch (error) {
-		console.error("\n❌ Fatal error:", error);
+		console.error("\n[Error] Fatal error:", error);
 		db.close();
 		process.exit(1);
 	}

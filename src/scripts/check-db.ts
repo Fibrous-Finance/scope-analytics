@@ -8,7 +8,7 @@ config();
 
 const DB_FILE = process.env.CITREA_DATABASE_FILE || process.env.DATABASE_FILE || "citrea_cache.db";
 
-console.log("🗄️  Database Status Check\n");
+console.log("[Database] Database Status Check\n");
 
 try {
 	const db = new Database(DB_FILE, { readonly: true });
@@ -16,10 +16,10 @@ try {
 	// Check if database exists and has data
 	const meta = db.prepare("SELECT * FROM meta").all() as Array<{ key: string; value: string }>;
 
-	console.log("📊 Meta Information:");
+	console.log("[Meta] Meta Information:");
 	console.log("═══════════════════════════════════════════════════");
 	if (meta.length === 0) {
-		console.log("  ⚠️  No data yet - database is empty");
+		console.log("  [Warning] No data yet - database is empty");
 	} else {
 		meta.forEach((row) => {
 			if (row.key === "lastScannedBlock") {
@@ -39,7 +39,7 @@ try {
 		.prepare("SELECT COUNT(DISTINCT from_address) as count FROM logs")
 		.get() as { count: number };
 
-	console.log("\n📈 Statistics:");
+	console.log("\n[Statistics] Statistics:");
 	console.log("═══════════════════════════════════════════════════");
 	console.log(`  Total Transactions: ${logCount.count.toLocaleString()}`);
 	console.log(`  Total Swap Events: ${swapCount.count.toLocaleString()}`);
@@ -76,7 +76,7 @@ try {
 		.get() as { first_block: number; last_block: number } | undefined;
 
 	if (blockRange && blockRange.first_block) {
-		console.log("\n🔗 Block Range:");
+		console.log("\n[Block Range] Block Range:");
 		console.log("═══════════════════════════════════════════════════");
 		console.log(`  First Block: ${blockRange.first_block.toLocaleString()}`);
 		console.log(`  Last Block: ${blockRange.last_block.toLocaleString()}`);
@@ -107,7 +107,7 @@ try {
 	}>;
 
 	if (recentTx.length > 0) {
-		console.log("\n⏱️  Recent Transactions:");
+		console.log("\n[Recent Activity] Recent Transactions:");
 		console.log("═══════════════════════════════════════════════════");
 		recentTx.forEach((tx, i) => {
 			console.log(`  ${i + 1}. Block ${tx.block_number.toLocaleString()}`);
@@ -134,7 +134,7 @@ try {
 		.all() as Array<{ pair: string; count: number; total_volume: number }>;
 
 	if (topPairs.length > 0) {
-		console.log("\n🔥 Top Token Pairs:");
+		console.log("\n[Top Pairs] Top Token Pairs:");
 		console.log("═══════════════════════════════════════════════════");
 		topPairs.forEach((pair, i) => {
 			console.log(`  ${i + 1}. ${pair.count} swaps`);
@@ -147,7 +147,7 @@ try {
 	const stats = statSync(DB_FILE);
 	const fileSizeMB = (stats.size / (1024 * 1024)).toFixed(2);
 
-	console.log("\n💾 Database File:");
+	console.log("\n[Storage] Database File:");
 	console.log("═══════════════════════════════════════════════════");
 	console.log(`  File: ${DB_FILE}`);
 	console.log(`  Size: ${fileSizeMB} MB`);
@@ -155,10 +155,10 @@ try {
 	db.close();
 } catch (error) {
 	if ((error as NodeJS.ErrnoException).code === "ENOENT") {
-		console.log("  ⚠️  Database file not found!");
+		console.log("  [Warning] Database file not found!");
 		console.log(`  Expected location: ${DB_FILE}`);
 		console.log(`  Run 'pnpm start' to create and populate the database.`);
 	} else {
-		console.error("❌ Error reading database:", error);
+		console.error("[Error] Error reading database:", error);
 	}
 }

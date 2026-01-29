@@ -6,6 +6,13 @@ import { getChainDefinition, type NetworkConfig } from "../config/networks";
 import { erc20Abi } from "../config/abi";
 import { sanitizeDecimals } from "../utils/format";
 import { processInChunks } from "../utils/batch";
+import {
+	batchInsertLogs,
+	batchInsertFees,
+	batchInsertSwaps,
+	insertFee,
+	insertSwap,
+} from "./storage";
 
 export interface SwapEventData {
 	sender: string;
@@ -38,7 +45,7 @@ async function fetchLogsWithRetry(
 	} catch (error) {
 		if (retries > 0) {
 			console.warn(
-				`⚠ RPC error, retrying... (${ENV.MAX_RETRIES - retries + 1}/${ENV.MAX_RETRIES})`
+				`[Warning] RPC error, retrying... (${ENV.MAX_RETRIES - retries + 1}/${ENV.MAX_RETRIES})`
 			);
 			await new Promise((resolve) =>
 				setTimeout(resolve, ENV.RETRY_DELAY_MS * (ENV.MAX_RETRIES - retries + 1))
@@ -63,36 +70,20 @@ export async function scanLogs(
 		const lastScanned = getMeta(db, "lastScannedBlock");
 		if (lastScanned) {
 			startBlock = BigInt(lastScanned) + 1n;
-			console.log(`📊 Resuming from block ${startBlock.toLocaleString()}`);
+			console.log(`[Resuming] Resuming from block ${startBlock.toLocaleString()}`);
 		}
 	} else {
-		console.log("🔄 Full scan mode - scanning from genesis");
+		console.log("[Full Scan] Full scan mode - scanning from genesis");
 	}
 
 	if (startBlock > latestBlock) {
-		console.log("✓ Already up to date!");
+		console.log("[Success] Already up to date!");
 		return;
 	}
 
 	console.log(
-		`🔍 Scanning blocks ${startBlock.toLocaleString()} → ${latestBlock.toLocaleString()}`
+		`[Scanning] Scanning blocks ${startBlock.toLocaleString()} → ${latestBlock.toLocaleString()}`
 	);
-
-	const insertLog = db.prepare(`
-    INSERT OR IGNORE INTO logs (tx_hash, block_number, from_address, gas_used, timestamp)
-    VALUES (?, ?, ?, ?, ?)
-  `);
-
-	const insertSwap = db.prepare(`
-    INSERT OR IGNORE INTO swap_events 
-    (tx_hash, log_index, block_number, sender, amount_in, amount_out, token_in, token_out, destination, timestamp)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-	const insertFee = db.prepare(`
-    INSERT OR IGNORE INTO fees (tx_hash, fee_wei)
-    VALUES (?, ?)
-  `);
 
 	const checkTxExists = db.prepare(`
     SELECT 
@@ -235,7 +226,7 @@ export async function scanLogs(
 							};
 						} catch (e) {
 							console.warn(
-								`⚠ Could not process log for ${log.transactionHash!}:`,
+								`[Warning] Could not process log for ${log.transactionHash!}:`,
 								(e as Error).message
 							);
 							return null;
@@ -246,39 +237,45 @@ export async function scanLogs(
 				const validData = logData.filter((d) => d !== null);
 
 				if (validData.length > 0) {
-					const insertMany = db.transaction((data) => {
-						for (const item of data) {
-							if (item) {
-								insertLog.run(
-									item.log.tx_hash,
-									item.log.block_number,
-									item.log.from_address,
-									item.log.gas_used,
-									item.log.timestamp
-								);
-								if (item.fee) {
-									insertFee.run(item.fee.tx_hash, item.fee.fee_wei);
-								}
-								for (const swap of item.swaps) {
-									insertSwap.run(
-										swap.tx_hash,
-										swap.log_index,
-										swap.block_number,
-										swap.sender,
-										swap.amount_in,
-										swap.amount_out,
-										swap.token_in,
-										swap.token_out,
-										swap.destination,
-										swap.timestamp
-									);
-									processedSwaps++;
-								}
+					const logsToInsert = [];
+					const feesToInsert = [];
+					const swapsToInsert = [];
+
+					for (const item of validData) {
+						if (item) {
+							logsToInsert.push({
+								tx_hash: item.log.tx_hash,
+								block_number: item.log.block_number,
+								from_address: item.log.from_address,
+								gas_used: item.log.gas_used,
+								timestamp: item.log.timestamp,
+							});
+							if (item.fee) {
+								feesToInsert.push({
+									tx_hash: item.fee.tx_hash,
+									fee_wei: item.fee.fee_wei,
+								});
+							}
+							for (const swap of item.swaps) {
+								swapsToInsert.push({
+									tx_hash: swap.tx_hash,
+									log_index: swap.log_index,
+									block_number: swap.block_number,
+									sender: swap.sender,
+									amount_in: swap.amount_in,
+									amount_out: swap.amount_out,
+									token_in: swap.token_in,
+									token_out: swap.token_out,
+									destination: swap.destination,
+									timestamp: swap.timestamp,
+								});
+								processedSwaps++;
 							}
 						}
-					});
-
-					insertMany(validData);
+					}
+					batchInsertLogs(db, logsToInsert);
+					batchInsertFees(db, feesToInsert);
+					batchInsertSwaps(db, swapsToInsert);
 					processedLogs += validData.length;
 				}
 			}
@@ -291,7 +288,7 @@ export async function scanLogs(
 
 			currentBlock = endBlock + 1n;
 		} catch (error) {
-			console.error(`❌ Error scanning blocks ${currentBlock}-${endBlock}:`, error);
+			console.error(`[Error] Error scanning blocks ${currentBlock}-${endBlock}:`, error);
 			throw error;
 		}
 	}
@@ -305,10 +302,10 @@ export async function scanLogs(
 		count: number;
 	};
 
-	let summary = `\n✓ Scan complete! Processed ${processedLogs.toLocaleString()} transactions, ${processedSwaps.toLocaleString()} swap events`;
-	summary += `\n  📊 Database now contains: ${actualTxCount.count.toLocaleString()} transactions, ${actualSwapCount.count.toLocaleString()} swap events`;
+	let summary = `\n[Success] Scan complete! Processed ${processedLogs.toLocaleString()} transactions, ${processedSwaps.toLocaleString()} swap events`;
+	summary += `\n  [Database] Database now contains: ${actualTxCount.count.toLocaleString()} transactions, ${actualSwapCount.count.toLocaleString()} swap events`;
 	if (filledMissingFees > 0 || filledMissingSwaps > 0) {
-		summary += `\n  🔧 Filled missing data: ${filledMissingFees} fees, ${filledMissingSwaps} swap events`;
+		summary += `\n  [Fix] Filled missing data: ${filledMissingFees} fees, ${filledMissingSwaps} swap events`;
 	}
 	console.log(summary);
 }
@@ -359,7 +356,7 @@ export async function backfillFees(
 				});
 				const eff = (receipt as unknown as { effectiveGasPrice: bigint }).effectiveGasPrice;
 				const feeWei = receipt.gasUsed * eff;
-				insertFeeLocal.run(tx_hash, feeWei.toString());
+				insertFee(db, { tx_hash, fee_wei: feeWei.toString() });
 				totalInserted++;
 			},
 			(chunkProcessed) => {
@@ -442,18 +439,21 @@ export async function backfillSwapEvents(
 						const block = await client.getBlock({
 							blockNumber: receipt.blockNumber!,
 						});
-						insertSwapLocal.run(
+						insertSwap(db, {
 							tx_hash,
-							typeof recLog.logIndex !== "undefined" ? Number(recLog.logIndex) : 0,
-							Number(receipt.blockNumber!),
-							args.sender.toLowerCase(),
-							args.amount_in.toString(),
-							args.amount_out.toString(),
-							args.token_in.toLowerCase(),
-							args.token_out.toLowerCase(),
-							args.destination.toLowerCase(),
-							Number(block.timestamp)
-						);
+							log_index:
+								typeof recLog.logIndex !== "undefined"
+									? Number(recLog.logIndex)
+									: 0,
+							block_number: Number(receipt.blockNumber!),
+							sender: args.sender.toLowerCase(),
+							amount_in: args.amount_in.toString(),
+							amount_out: args.amount_out.toString(),
+							token_in: args.token_in.toLowerCase(),
+							token_out: args.token_out.toLowerCase(),
+							destination: args.destination.toLowerCase(),
+							timestamp: Number(block.timestamp),
+						});
 						totalInserted++;
 						foundSwapForTx = true;
 					}

@@ -1,6 +1,7 @@
 import type Database from "better-sqlite3";
 import { createPublicClient, webSocket, decodeEventLog, type Address, type Log } from "viem";
 import { getChainDefinition, type NetworkConfig } from "../config/networks";
+import { insertLog, insertFee, insertSwap } from "./storage";
 import { ENV } from "../config/env";
 
 export interface SwapEventData {
@@ -42,7 +43,7 @@ export class RealtimeIndexer {
 
 		if (!wsRpcUrl) {
 			console.warn(
-				`⚠️  No WebSocket URL configured for ${this.config.name}. Falling back to HTTP polling.`
+				`[Warning] No WebSocket URL configured for ${this.config.name}. Falling back to HTTP polling.`
 			);
 			return;
 		}
@@ -61,9 +62,9 @@ export class RealtimeIndexer {
 
 			this.isConnected = true;
 			this.reconnectAttempts = 0;
-			console.log(`✅ WebSocket connected: ${this.config.name}`);
+			console.log(`[Connected] WebSocket connected: ${this.config.name}`);
 		} catch (error) {
-			console.error(`❌ WebSocket connection failed:`, error);
+			console.error(`[Error] WebSocket connection failed:`, error);
 			this.handleReconnect();
 		}
 	}
@@ -99,12 +100,14 @@ export class RealtimeIndexer {
 	 */
 	private handleReconnect(): void {
 		if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-			console.error(`❌ Max reconnection attempts reached. Switching to HTTP polling.`);
+			console.error(`[Error] Max reconnection attempts reached. Switching to HTTP polling.`);
 			return;
 		}
 
 		this.reconnectAttempts++;
-		console.log(`🔄 Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+		console.log(
+			`[Reconnecting] Reconnecting... (${this.reconnectAttempts}/${this.maxReconnectAttempts})`
+		);
 
 		setTimeout(() => {
 			this.connect();
@@ -116,11 +119,11 @@ export class RealtimeIndexer {
 	 */
 	async watchSwapEvents(): Promise<(() => void) | null> {
 		if (!this.wsClient) {
-			console.warn("⚠️  WebSocket not connected. Call connect() first.");
+			console.warn("[Warning] WebSocket not connected. Call connect() first.");
 			return null;
 		}
 
-		console.log(`👀 Watching Swap events on ${this.config.name}...`);
+		console.log(`[Watching] Watching Swap events on ${this.config.name}...`);
 
 		const unwatch = this.wsClient.watchContractEvent({
 			address: this.config.contractAddress,
@@ -132,7 +135,7 @@ export class RealtimeIndexer {
 				}
 			},
 			onError: (error) => {
-				console.error("❌ WebSocket event error:", error);
+				console.error("[Error] WebSocket event error:", error);
 				this.isConnected = false;
 				this.handleReconnect();
 			},
@@ -164,49 +167,36 @@ export class RealtimeIndexer {
 			]);
 
 			// Calculate fee
+			// Calculate fee
 			const feeWei = receipt.gasUsed * (receipt as any).effectiveGasPrice || BigInt(0);
-
-			// Store in database
-			const insertLog = this.db.prepare(`
-				INSERT OR IGNORE INTO logs (tx_hash, block_number, from_address, gas_used, timestamp)
-				VALUES (?, ?, ?, ?, ?)
-			`);
-
-			const insertFee = this.db.prepare(`
-				INSERT OR IGNORE INTO fees (tx_hash, fee_wei)
-				VALUES (?, ?)
-			`);
-
-			const insertSwap = this.db.prepare(`
-				INSERT OR IGNORE INTO swap_events 
-				(tx_hash, log_index, block_number, sender, amount_in, amount_out, token_in, token_out, destination, timestamp)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-			`);
 
 			// Execute transaction
 			this.db.transaction(() => {
-				insertLog.run(
-					log.transactionHash!,
-					Number(log.blockNumber!),
-					receipt.from.toLowerCase(),
-					receipt.gasUsed.toString(),
-					Number(block.timestamp)
-				);
+				insertLog(this.db, {
+					tx_hash: log.transactionHash!,
+					block_number: Number(log.blockNumber!),
+					from_address: receipt.from.toLowerCase(),
+					gas_used: receipt.gasUsed.toString(),
+					timestamp: Number(block.timestamp),
+				});
 
-				insertFee.run(log.transactionHash!, feeWei.toString());
+				insertFee(this.db, {
+					tx_hash: log.transactionHash!,
+					fee_wei: feeWei.toString(),
+				});
 
-				insertSwap.run(
-					log.transactionHash!,
-					typeof log.logIndex !== "undefined" ? Number(log.logIndex) : 0,
-					Number(log.blockNumber!),
-					args.sender.toLowerCase(),
-					args.amount_in.toString(),
-					args.amount_out.toString(),
-					args.token_in.toLowerCase(),
-					args.token_out.toLowerCase(),
-					args.destination.toLowerCase(),
-					Number(block.timestamp)
-				);
+				insertSwap(this.db, {
+					tx_hash: log.transactionHash!,
+					log_index: typeof log.logIndex !== "undefined" ? Number(log.logIndex) : 0,
+					block_number: Number(log.blockNumber!),
+					sender: args.sender.toLowerCase(),
+					amount_in: args.amount_in.toString(),
+					amount_out: args.amount_out.toString(),
+					token_in: args.token_in.toLowerCase(),
+					token_out: args.token_out.toLowerCase(),
+					destination: args.destination.toLowerCase(),
+					timestamp: Number(block.timestamp),
+				});
 			})();
 
 			// Create processed event
@@ -233,7 +223,7 @@ export class RealtimeIndexer {
 			}
 
 			console.log(
-				`🔴 Live Swap: ${processedEvent.tx_hash.slice(0, 10)}... | Block ${processedEvent.block_number}`
+				`[Live] Live Swap: ${processedEvent.tx_hash.slice(0, 10)}... | Block ${processedEvent.block_number}`
 			);
 		} catch (error) {
 			console.error("Error processing log:", error);
@@ -259,10 +249,10 @@ export class RealtimeIndexer {
 	 * Hybrid mode: Initial batch scan + real-time watching
 	 */
 	async startHybridMode(): Promise<() => void> {
-		console.log("\n🔄 Starting hybrid mode...");
+		console.log("\n[Mode] Starting hybrid mode...");
 
 		// 1. Initial batch scan
-		console.log("📊 Step 1: Initial batch scan...");
+		console.log("[Step 1] Initial batch scan...");
 		const { scanLogs, backfillFees, backfillSwapEvents, backfillTokenMetadata } =
 			await import("./indexer");
 
@@ -271,15 +261,15 @@ export class RealtimeIndexer {
 		await backfillSwapEvents(this.db, this.config);
 		await backfillTokenMetadata(this.db, this.config);
 
-		console.log("✅ Initial scan complete");
+		console.log("[Success] Initial scan complete");
 
 		// 2. Start real-time watching
-		console.log("📊 Step 2: Starting real-time watch...");
+		console.log("[Step 2] Starting real-time watch...");
 		await this.connect();
 
 		const unwatch = await this.watchSwapEvents();
 
-		console.log("✅ Hybrid mode active\n");
+		console.log("[Success] Hybrid mode active\n");
 
 		// Return cleanup function
 		return () => {
@@ -294,7 +284,7 @@ export class RealtimeIndexer {
 	disconnect(): void {
 		if (this.wsClient) {
 			this.isConnected = false;
-			console.log(`👋 WebSocket disconnected: ${this.config.name}`);
+			console.log(`[Disconnected] WebSocket disconnected: ${this.config.name}`);
 		}
 	}
 
