@@ -1,268 +1,41 @@
-# Configuration Guide
+# Configuration
 
-Complete reference for environment variables and settings.
+Environment variable reference for `.env`.
 
-## Quick Setup
+## Network Settings
 
-```bash
-# Copy example file
-cp .env.example .env
+| Variable                  | Description                                            |
+| :------------------------ | :----------------------------------------------------- |
+| `CITREA_RPC_URL`          | Polling RPC endpoint for Citrea.                       |
+| `CITREA_WS_RPC_URL`       | WebSocket endpoint for Citrea (Required for Realtime). |
+| `CITREA_CHAIN_ID`         | Chain ID for Citrea (Default: `4114`).                 |
+| `MONAD_RPC_URL`           | Polling RPC endpoint for Monad.                        |
+| `MONAD_WS_RPC_URL`        | WebSocket endpoint for Monad (Required for Realtime).  |
+| `MONAD_CHAIN_ID`          | Chain ID for Monad (Default: `143`).                   |
+| `CITREA_CONTRACT_ADDRESS` | Contract address to index on Citrea.                   |
+| `MONAD_CONTRACT_ADDRESS`  | Contract address to index on Monad.                    |
 
-# Edit with your settings
-nano .env
-```
+## Application Settings
 
-## Environment Variables
+| Variable      | Description                                       | Default                |
+| :------------ | :------------------------------------------------ | :--------------------- |
+| `BATCH_SIZE`  | Blocks per batch scan. Lower if RPC errors occur. | `1000`                 |
+| `MAX_RETRIES` | Retry attempts for failed RPC calls.              | `3`                    |
+| `DB_PATH`     | Custom path for SQLite database.                  | `./[network]_cache.db` |
+| `API_PORT`    | Port for the metrics API server.                  | `3000`                 |
+| `API_HOST`    | Host binding for API server.                      | `localhost`            |
 
-### Network Settings
+## CLI Overrides
 
-#### CITREA_RPC_URL
-
-- **Type:** String (URL)
-- **Default:** `https://rpc.mainnet.citrea.xyz`
-- **Description:** RPC endpoint for Citrea Mainnet
-
-```bash
-CITREA_RPC_URL=https://rpc.mainnet.citrea.xyz
-```
-
-#### CITREA_CHAIN_ID
-
-- **Type:** Number
-- **Default:** `4114`
-- **Description:** Citrea Mainnet chain ID
+CLI flags override environment variables:
 
 ```bash
-CITREA_CHAIN_ID=4114
+# Override contract address
+pnpm start -- --address 0x123...
+
+# Force specific network
+pnpm start -- --network citrea
+
+# Enable Realtime Mode
+pnpm start -- --realtime
 ```
-
-#### MONAD_RPC_URL
-
-- **Type:** String (URL)
-- **Default:** `https://monad-mainnet.g.alchemy.com/v2/...`
-- **Description:** RPC endpoint for Monad Mainnet
-
-```bash
-MONAD_RPC_URL=https://monad-mainnet.g.alchemy.com/v2/...
-```
-
-#### MONAD_CHAIN_ID
-
-- **Type:** Number
-- **Default:** `143`
-- **Description:** Monad Mainnet chain ID
-
-```bash
-MONAD_CHAIN_ID=143
-```
-
-#### MONAD_CONTRACT_ADDRESS
-
-- **Type:** String (Address)
-- **Default:** `0x274602a953847d807231d2370072f5f4e4594b44`
-- **Description:** Contract address to analyze on Monad
-
-```bash
-MONAD_CONTRACT_ADDRESS=0x274602a953847d807231d2370072f5f4e4594b44
-```
-
-### Contract Settings
-
-#### CONTRACT_ADDRESS
-
-- **Type:** String (Address)
-- **Default:** `0x274602a953847d807231d2370072F5f4E4594B44`
-- **Description:** Default contract address to analyze
-
-```bash
-CONTRACT_ADDRESS=0x274602a953847d807231d2370072F5f4E4594B44
-```
-
-**Note:** Can be overridden with `--address` CLI parameter
-
-### Database Settings
-
-#### CITREA_DATABASE_FILE
-
-- **Type:** String (Path)
-- **Default:** `citrea_cache.db`
-- **Description:** SQLite database file path (for Citrea network)
-
-```bash
-CITREA_DATABASE_FILE=citrea_cache.db
-```
-
-**Note:** Monad network uses `monad_cache.db` by default.
-
-#### MONAD_DATABASE_FILE
-
-- **Type:** String (Path)
-- **Default:** `monad_cache.db`
-- **Description:** SQLite database file path (for Monad network)
-
-```bash
-MONAD_DATABASE_FILE=monad_cache.db
-```
-
-### Performance Settings
-
-#### BATCH_SIZE
-
-- **Type:** Number
-- **Default:** `1000`
-- **Description:** Number of blocks to scan per batch
-
-```bash
-BATCH_SIZE=1000
-```
-
-**Recommendations:**
-
-- **100-500:** More stable, slower
-- **1000:** Balanced (default)
-- **2000-5000:** Faster but may hit RPC limits
-
-#### MAX_RETRIES
-
-- **Type:** Number
-- **Default:** `3`
-- **Description:** Maximum retry attempts for failed RPC calls
-
-```bash
-MAX_RETRIES=3
-```
-
-#### RETRY_DELAY_MS
-
-- **Type:** Number (milliseconds)
-- **Default:** `1000`
-- **Description:** Base delay between retry attempts
-
-```bash
-RETRY_DELAY_MS=1000
-```
-
-**Note:** Actual delay increases with each retry (1x, 2x, 3x...)
-
-### API Server Settings
-
-#### API_PORT
-
-- **Type:** Number
-- **Default:** `3000`
-- **Description:** Port for HTTP API server
-
-```bash
-API_PORT=3000
-```
-
-#### API_HOST
-
-- **Type:** String
-- **Default:** `localhost`
-- **Description:** Host/IP address for API server
-
-```bash
-API_HOST=localhost
-```
-
-**Security Note:**
-
-- `localhost` - Local access only (recommended)
-- `0.0.0.0` - Accept external connections
-
-### Output & Summaries
-
-#### INCLUDE_EVENTS
-
-- **Type:** Boolean
-- **Default:** `false`
-- **Description:** Include raw `swapEvents` array in API/JSON output
-
-```bash
-INCLUDE_EVENTS=false
-```
-
-#### EVENTS_LIMIT
-
-- **Type:** Number
-- **Default:** `10`
-- **Description:** Max number of raw swap events to include when `INCLUDE_EVENTS=true`
-
-```bash
-EVENTS_LIMIT=10
-```
-
-#### RECENT_SWAPS_LIMIT
-
-- **Type:** Number
-- **Default:** `10`
-- **Description:** Number of summarized recent swaps to include (`recentSwaps`)
-
-```bash
-RECENT_SWAPS_LIMIT=10
-```
-
-### Multicall for Token Metadata
-
-- Token metadata backfill retrieves ERC20 `decimals` and `symbol` using batched multicall.
-- No extra configuration is required; multicall is enabled by default and improves performance.
-- If multicall is unavailable or fails (RPC/provider constraint), the application automatically falls back to individual calls per token.
-
-## CLI Parameter Override
-
-CLI parameters take precedence over environment variables:
-
-```bash
-# Uses CONTRACT_ADDRESS from .env
-pnpm start
-
-# Overrides CONTRACT_ADDRESS from .env
-pnpm start -- --address 0xOtherAddress
-
-# Simplified commands
-pnpm scan              # Incremental scan
-pnpm serve             # API server
-pnpm export            # Export to analytics.json
-
-# .env sets defaults, CLI adds options
-pnpm start -- --incremental true --serve true
-```
-
-**Priority Order:**
-
-1. CLI parameters (highest)
-2. Environment variables
-3. Hardcoded defaults (lowest)
-
-## Security Best Practices
-
-1. **Never commit `.env` to version control**
-    - Already in `.gitignore`
-    - Contains sensitive configuration
-
-2. **Restrict API access in production**
-    - Use `API_HOST=localhost` for local only
-    - Use firewall rules if `API_HOST=0.0.0.0`
-
-3. **Use environment-specific files**
-    - `.env.development`
-    - `.env.production`
-    - `.env.test`
-
-## Default Values
-
-| Variable             | Default                                    | Type    |
-| -------------------- | ------------------------------------------ | ------- |
-| CITREA_RPC_URL       | https://rpc.mainnet.citrea.xyz             | String  |
-| CITREA_CHAIN_ID      | 4114                                       | Number  |
-| CONTRACT_ADDRESS     | 0x274602a953847d807231d2370072F5f4E4594B44 | Address |
-| CITREA_DATABASE_FILE | citrea_cache.db                            | String  |
-| BATCH_SIZE           | 1000                                       | Number  |
-| MAX_RETRIES          | 3                                          | Number  |
-| RETRY_DELAY_MS       | 1000                                       | Number  |
-| API_PORT             | 3000                                       | Number  |
-| API_HOST             | localhost                                  | String  |
-| INCLUDE_EVENTS       | false                                      | Boolean |
-| EVENTS_LIMIT         | 10                                         | Number  |
-| RECENT_SWAPS_LIMIT   | 10                                         | Number  |
