@@ -1,11 +1,4 @@
-/**
- * Process an array of items in chunks with a specified concurrency limit.
- * @param items Array of items to process
- * @param concurrency Number of items to process simultaneously
- * @param task Function to execute for each item
- * @param onProgress Optional callback for progress updates (processed count)
- * @returns Object containing processing statistics
- */
+// Process an array of items in chunks with a specified concurrency limit.
 export async function processInChunks<T>(
 	items: T[],
 	concurrency: number,
