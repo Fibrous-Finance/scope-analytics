@@ -12,6 +12,7 @@ import {
 } from "./services/indexer";
 import { startServer, calculateEnhancedMetrics } from "./services/server";
 import { RealtimeIndexer } from "./services/realtime";
+import { PriceService } from "./services/price";
 import { NETWORKS, type NetworkConfig } from "./config/networks";
 import { ENV } from "./config/env";
 
@@ -87,6 +88,18 @@ async function runPipeline(db: any, config: NetworkConfig, args: ReturnType<type
 	const { processed: pTokens, inserted: iTokens } = await backfillTokenMetadata(db, config);
 	if (pTokens > 0) {
 		console.log(`[Token Metadata] Token metadata backfill: ${iTokens}/${pTokens} inserted`);
+	}
+
+	// Update Prices
+	const priceService = new PriceService(db, {
+		coingeckoPlatform: config.coingeckoPlatform,
+	});
+	const tokens = db.prepare("SELECT address FROM token_metadata").all() as Array<{
+		address: string;
+	}>;
+	if (tokens.length > 0) {
+		console.log(`[Prices] Updating prices for ${tokens.length} tokens...`);
+		await priceService.ensurePricesUpdated(tokens.map((t) => t.address));
 	}
 
 	const metrics = calculateEnhancedMetrics(db, config, {
@@ -165,18 +178,20 @@ async function main() {
 			const metrics = await runPipeline(db, config, args);
 
 			console.log("\n[Analytics] Analytics Summary:");
-			console.log(`  Total Users: ${metrics.totalUsers.toLocaleString()}`);
-			console.log(`  Total Transactions: ${metrics.totalTxCount.toLocaleString()}`);
-			console.log(`  Total Swaps: ${metrics.totalSwaps.toLocaleString()}`);
-			console.log(`  Total Fees: ${metrics.totalFees}`);
-			console.log(`\n  [Volume] Volume by Token (Top 3 Inbound):`);
-			metrics.volumeByToken.inbound.slice(0, 3).forEach((v, i) => {
-				console.log(`    ${i + 1}. ${v.token.slice(0, 10)}...`);
-				console.log(`       Amount: ${v.normalizedAmount}`);
+			console.log(`  Total Addresses: ${metrics.uniqueActiveAddresses.toLocaleString()}`);
+			console.log(`  Total Transactions: ${metrics.totalTransactions.toLocaleString()}`);
+			console.log(`  Total Swap Events: ${metrics.totalSwapEvents.toLocaleString()}`);
+			console.log(
+				`  Cumulative Fees: ${metrics.cumulativeNetworkFees} (Avg: ${metrics.averageTransactionFee}/tx)`
+			);
+			console.log(`\n  [Volume] Liquidity In (Top 3):`);
+			metrics.tokenMetrics.liquidityIn.slice(0, 3).forEach((v, i) => {
+				console.log(`    ${i + 1}. ${v.contractAddress.slice(0, 10)}...`);
+				console.log(`       Amount: ${v.formattedAmount}`);
 				console.log(`       Swaps: ${v.swapCount.toLocaleString()}`);
 			});
 			console.log(
-				`\n  Top Token Pair: ${metrics.topTokenPairs[0]?.tokenIn.slice(0, 8)}... → ${metrics.topTokenPairs[0]?.tokenOut.slice(0, 8)}... (${metrics.topTokenPairs[0]?.swapCount ?? 0} swaps)`
+				`\n  Top Trading Pair: ${metrics.topTradingPairs[0]?.tokenInAddress.slice(0, 8)}... → ${metrics.topTradingPairs[0]?.tokenOutAddress.slice(0, 8)}... (${metrics.topTradingPairs[0]?.swapCount ?? 0} swaps)`
 			);
 
 			db.close();
