@@ -1,24 +1,25 @@
 #!/bin/bash
+set -e
 
-# Scope Analytics - Quick Start
+# Scope Analytics - Interactive Initialization Script
 
-echo "[Info] Starting setup..."
+echo "[System] Initializing Scope Analytics setup sequence..."
 
-# 1. Dependencies
+# 1. Dependency Resolution
 if [ ! -d "node_modules" ]; then
-    echo "[Setup] Installing dependencies..."
+    echo "[Setup] Resolving and installing Node.js dependencies via pnpm..."
     pnpm install
 else
-    echo "[Setup] Dependencies already installed."
+    echo "[Setup] Dependencies verified. Skipping installation."
 fi
 
-# 2. Environment
+# 2. Environment Configuration
 if [ ! -f ".env" ]; then
-    echo "[Setup] Creating .env from template..."
     if [ -f ".env.example" ]; then
+        echo "[Config] Provisioning .env from .env.example template..."
         cp .env.example .env
     else
-        echo "[Warning] No .env.example found. Creating minimal configuration."
+        echo "[Warning] Template .env.example missing. Provisioning default minimal configuration."
         cat > .env << EOF
 CITREA_RPC_URL=https://rpc.mainnet.citrea.xyz
 CITREA_CHAIN_ID=4114
@@ -31,9 +32,11 @@ API_PORT=3000
 API_HOST=localhost
 EOF
     fi
+else
+    echo "[Config] Existing .env file detected. Skipping provisioning."
 fi
 
-# 3. Launch
-echo "[Info] Setup complete. Launching application..."
-echo ""
+# 3. Application Execution
+echo "[System] Initialization sequence complete."
+echo "Starting application..."
 pnpm start
