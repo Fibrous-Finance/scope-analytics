@@ -2,6 +2,9 @@ import type Database from "better-sqlite3";
 import { createServer } from "node:http";
 import { ENV } from "../config/env";
 import { formatAmount } from "../utils/format";
+import { Router, sendJson } from "./router";
+import { getWalletProfile } from "./wallet";
+import { getDecimalsAndSymbols, getPrices } from "./helpers";
 
 interface SwapEventData {
 	sender: string;
@@ -29,7 +32,7 @@ interface TokenPairDetail {
 	totalVolumeUsd: string;
 }
 
-interface EnhancedMetrics {
+export interface EnhancedMetrics {
 	uniqueActiveAddresses: number;
 	totalTransactions: number;
 	cumulativeNetworkFees: string;
@@ -62,34 +65,6 @@ interface EnhancedMetrics {
 }
 
 // Metrics Calculation Helpers
-
-function getDecimalsAndSymbols(db: Database.Database) {
-	const rows = db.prepare("SELECT address, decimals, symbol FROM token_metadata").all() as Array<{
-		address: string;
-		decimals: number;
-		symbol: string;
-	}>;
-	const decimalsMap = new Map<string, number>();
-	const symbolMap = new Map<string, string>();
-	for (const r of rows) {
-		const addr = r.address.toLowerCase();
-		decimalsMap.set(addr, r.decimals);
-		symbolMap.set(addr, r.symbol);
-	}
-	return { decimalsMap, symbolMap };
-}
-
-function getPrices(db: Database.Database) {
-	const rows = db.prepare("SELECT address, price_usd FROM token_prices").all() as Array<{
-		address: string;
-		price_usd: number;
-	}>;
-	const priceMap = new Map<string, number>();
-	for (const r of rows) {
-		priceMap.set(r.address.toLowerCase(), r.price_usd);
-	}
-	return priceMap;
-}
 
 function formatVolumeData(
 	rows: Array<{ token_in?: string; token_out?: string; total: number; cnt: number }>,
@@ -375,31 +350,229 @@ function getCachedMetrics(
 
 export function startServer(
 	db: Database.Database,
-	config: { currency: { decimals: number; symbol: string } },
+	config: { currency: { decimals: number; symbol: string }; name?: string },
 	port = ENV.API_PORT
 ): void {
-	const server = createServer((req, res) => {
-		if (req.url === "/metrics" && req.method === "GET") {
-			try {
-				const metrics = getCachedMetrics(db, config, {
-					includeEvents: ENV.INCLUDE_EVENTS,
-					eventsLimit: ENV.EVENTS_LIMIT,
+	const router = new Router();
+	const serverStartTime = Date.now();
 
-				});
-				res.writeHead(200, { "Content-Type": "application/json" });
-				res.end(JSON.stringify(metrics, null, 2));
-			} catch (error) {
-				console.error("[Server] Error:", error);
-				res.writeHead(500, { "Content-Type": "application/json" });
-				res.end(JSON.stringify({ error: "Internal Server Error" }));
-			}
-		} else {
-			res.writeHead(404, { "Content-Type": "application/json" });
-			res.end(JSON.stringify({ error: "Not found" }));
+	// GET /metrics — Full metrics (existing behavior)
+	router.get("/metrics", (_req, res) => {
+		const metrics = getCachedMetrics(db, config, {
+			includeEvents: ENV.INCLUDE_EVENTS,
+			eventsLimit: ENV.EVENTS_LIMIT,
+		});
+		sendJson(res, metrics);
+	});
+
+	// GET /metrics/daily?from=YYYY-MM-DD&to=YYYY-MM-DD
+	router.get("/metrics/daily", (_req, res, _params, query) => {
+		const metrics = getCachedMetrics(db, config);
+		const from = query.from || "1970-01-01";
+		const to = query.to || "9999-12-31";
+		const filtered = metrics.historicalDailyMetrics.filter(
+			(d) => d.date >= from && d.date <= to
+		);
+		sendJson(res, { from, to, count: filtered.length, data: filtered });
+	});
+
+	// GET /metrics/token/:address
+	router.get("/metrics/token/:address", (_req, res, params) => {
+		const addr = (params.address ?? "").toLowerCase();
+		const { decimalsMap, symbolMap } = getDecimalsAndSymbols(db);
+		const priceMap = getPrices(db);
+		const dec = decimalsMap.get(addr) ?? 18;
+		const sym = symbolMap.get(addr) ?? "UNKNOWN";
+		const price = priceMap.get(addr);
+
+		// Inbound volume
+		const inRow = db
+			.prepare(
+				`SELECT SUM(CAST(amount_in AS REAL)) as total, COUNT(*) as cnt
+				 FROM swap_events WHERE LOWER(token_in) = ?`
+			)
+			.get(addr) as any;
+
+		// Outbound volume
+		const outRow = db
+			.prepare(
+				`SELECT SUM(CAST(amount_out AS REAL)) as total, COUNT(*) as cnt
+				 FROM swap_events WHERE LOWER(token_out) = ?`
+			)
+			.get(addr) as any;
+
+		// Top pairs involving this token
+		const pairRows = db
+			.prepare(
+				`SELECT token_in, token_out, COUNT(*) as cnt
+				 FROM swap_events
+				 WHERE LOWER(token_in) = ? OR LOWER(token_out) = ?
+				 GROUP BY token_in, token_out ORDER BY cnt DESC LIMIT 10`
+			)
+			.all(addr, addr) as Array<{ token_in: string; token_out: string; cnt: number }>;
+
+		// Daily volume
+		const dailyRows = db
+			.prepare(
+				`SELECT strftime('%Y-%m-%d', timestamp, 'unixepoch') as day,
+				        SUM(CAST(amount_in AS REAL)) as vol, COUNT(*) as cnt
+				 FROM swap_events WHERE LOWER(token_in) = ?
+				 GROUP BY day ORDER BY day DESC LIMIT 30`
+			)
+			.all(addr) as Array<{ day: string; vol: number; cnt: number }>;
+
+		const inTotal = inRow?.total ?? 0;
+		const outTotal = outRow?.total ?? 0;
+
+		sendJson(res, {
+			address: addr,
+			symbol: sym,
+			decimals: dec,
+			priceUsd: price !== undefined ? `$${price.toFixed(4)}` : "N/A",
+			inbound: {
+				formattedAmount: `${formatAmount(BigInt(Math.floor(inTotal)), dec, 2)} ${sym}`,
+				volumeUsd:
+					price !== undefined ? `$${((inTotal / 10 ** dec) * price).toFixed(2)}` : "N/A",
+				swapCount: inRow?.cnt ?? 0,
+			},
+			outbound: {
+				formattedAmount: `${formatAmount(BigInt(Math.floor(outTotal)), dec, 2)} ${sym}`,
+				volumeUsd:
+					price !== undefined ? `$${((outTotal / 10 ** dec) * price).toFixed(2)}` : "N/A",
+				swapCount: outRow?.cnt ?? 0,
+			},
+			topPairs: pairRows.map((p) => ({
+				tokenIn: p.token_in,
+				tokenOut: p.token_out,
+				symbolIn: symbolMap.get(p.token_in.toLowerCase()) ?? "UNKNOWN",
+				symbolOut: symbolMap.get(p.token_out.toLowerCase()) ?? "UNKNOWN",
+				swapCount: p.cnt,
+			})),
+			dailyVolume: dailyRows.map((d) => ({
+				date: d.day,
+				formattedAmount: `${formatAmount(BigInt(Math.floor(d.vol)), dec, 2)} ${sym}`,
+				volumeUsd:
+					price !== undefined ? `$${((d.vol / 10 ** dec) * price).toFixed(2)}` : "N/A",
+				swapCount: d.cnt,
+			})),
+		});
+	});
+
+	// GET /metrics/pair/:tokenIn/:tokenOut
+	router.get("/metrics/pair/:tokenIn/:tokenOut", (_req, res, params) => {
+		const tokenIn = (params.tokenIn ?? "").toLowerCase();
+		const tokenOut = (params.tokenOut ?? "").toLowerCase();
+		const { decimalsMap, symbolMap } = getDecimalsAndSymbols(db);
+		const priceMap = getPrices(db);
+
+		const decIn = decimalsMap.get(tokenIn) ?? 18;
+		const decOut = decimalsMap.get(tokenOut) ?? 18;
+		const symIn = symbolMap.get(tokenIn) ?? "UNKNOWN";
+		const symOut = symbolMap.get(tokenOut) ?? "UNKNOWN";
+		const priceIn = priceMap.get(tokenIn);
+
+		const statsRow = db
+			.prepare(
+				`SELECT COUNT(*) as cnt,
+				        SUM(CAST(amount_in AS REAL)) as volIn,
+				        SUM(CAST(amount_out AS REAL)) as volOut
+				 FROM swap_events WHERE LOWER(token_in) = ? AND LOWER(token_out) = ?`
+			)
+			.get(tokenIn, tokenOut) as any;
+
+		const dailyRows = db
+			.prepare(
+				`SELECT strftime('%Y-%m-%d', timestamp, 'unixepoch') as day,
+				        COUNT(*) as cnt,
+				        SUM(CAST(amount_in AS REAL)) as volIn,
+				        SUM(CAST(amount_out AS REAL)) as volOut
+				 FROM swap_events WHERE LOWER(token_in) = ? AND LOWER(token_out) = ?
+				 GROUP BY day ORDER BY day DESC LIMIT 30`
+			)
+			.all(tokenIn, tokenOut) as Array<{
+			day: string;
+			cnt: number;
+			volIn: number;
+			volOut: number;
+		}>;
+
+		const topTraders = db
+			.prepare(
+				`SELECT sender, COUNT(*) as cnt
+				 FROM swap_events WHERE LOWER(token_in) = ? AND LOWER(token_out) = ?
+				 GROUP BY sender ORDER BY cnt DESC LIMIT 10`
+			)
+			.all(tokenIn, tokenOut) as Array<{ sender: string; cnt: number }>;
+
+		sendJson(res, {
+			tokenIn,
+			tokenOut,
+			symbolIn: symIn,
+			symbolOut: symOut,
+			totalSwaps: statsRow?.cnt ?? 0,
+			volumeIn: `${formatAmount(BigInt(Math.floor(statsRow?.volIn ?? 0)), decIn, 2)} ${symIn}`,
+			volumeOut: `${formatAmount(BigInt(Math.floor(statsRow?.volOut ?? 0)), decOut, 2)} ${symOut}`,
+			totalVolumeUsd:
+				priceIn !== undefined
+					? `$${(((statsRow?.volIn ?? 0) / 10 ** decIn) * priceIn).toFixed(2)}`
+					: "N/A",
+			dailyStats: dailyRows.map((d) => ({
+				date: d.day,
+				swapCount: d.cnt,
+				volumeIn: `${formatAmount(BigInt(Math.floor(d.volIn)), decIn, 2)} ${symIn}`,
+				volumeOut: `${formatAmount(BigInt(Math.floor(d.volOut)), decOut, 2)} ${symOut}`,
+			})),
+			topTraders: topTraders.map((t) => ({ address: t.sender, swapCount: t.cnt })),
+		});
+	});
+
+	// GET /metrics/wallet/:address
+	router.get("/metrics/wallet/:address", (_req, res, params) => {
+		const profile = getWalletProfile(db, params.address ?? "", config);
+		if (!profile) {
+			sendJson(res, { error: "Address not found" }, 404);
+			return;
+		}
+		sendJson(res, profile);
+	});
+
+	// GET /health
+	router.get("/health", (_req, res) => {
+		const totalTx = (db.prepare("SELECT COUNT(*) as cnt FROM logs").get() as any)?.cnt ?? 0;
+		const totalSwaps =
+			(db.prepare("SELECT COUNT(*) as cnt FROM swap_events").get() as any)?.cnt ?? 0;
+		const blockRow = db.prepare("SELECT MAX(block_number) as last FROM logs").get() as any;
+		const tsRow = db.prepare("SELECT MAX(timestamp) as last_ts FROM logs").get() as any;
+
+		sendJson(res, {
+			status: "ok",
+			network: config.name ?? "unknown",
+			database: {
+				totalTransactions: totalTx,
+				totalSwapEvents: totalSwaps,
+				lastBlock: blockRow?.last ?? null,
+				lastUpdatedAt: tsRow?.last_ts ? new Date(tsRow.last_ts * 1000).toISOString() : null,
+			},
+			uptime: Math.floor((Date.now() - serverStartTime) / 1000),
+		});
+	});
+
+	// Create server with router
+	const server = createServer(async (req, res) => {
+		const handled = await router.handle(req, res);
+		if (!handled) {
+			sendJson(res, { error: "Not found" }, 404);
 		}
 	});
 
 	server.listen(port, () => {
-		console.log(`\n[Server] Metrics API running at http://${ENV.API_HOST}:${port}/metrics`);
+		console.log(`\n[Server] Metrics API running at http://${ENV.API_HOST}:${port}`);
+		console.log(`  Endpoints:`);
+		console.log(`    GET /metrics`);
+		console.log(`    GET /metrics/daily?from=YYYY-MM-DD&to=YYYY-MM-DD`);
+		console.log(`    GET /metrics/token/:address`);
+		console.log(`    GET /metrics/pair/:tokenIn/:tokenOut`);
+		console.log(`    GET /metrics/wallet/:address`);
+		console.log(`    GET /health`);
 	});
 }

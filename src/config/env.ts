@@ -10,7 +10,6 @@ export const ENV = {
 	INCLUDE_EVENTS: (process.env.INCLUDE_EVENTS || "false").toLowerCase() === "true",
 	EVENTS_LIMIT: parseInt(process.env.EVENTS_LIMIT || "10", 10),
 
-
 	// Citrea
 	CITREA_RPC_URL: process.env.CITREA_RPC_URL || "https://rpc.mainnet.citrea.xyz",
 	CITREA_CHAIN_ID: parseInt(process.env.CITREA_CHAIN_ID || "4114", 10),

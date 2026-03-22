@@ -2,7 +2,6 @@
 
 import "dotenv/config";
 import prompts from "prompts";
-import { writeFileSync } from "node:fs";
 import { initDatabase } from "./database";
 import {
 	scanLogs,
@@ -11,6 +10,7 @@ import {
 	backfillTokenMetadata,
 } from "./services/indexer";
 import { startServer, calculateEnhancedMetrics } from "./services/server";
+import { exportMetrics, inferFormat } from "./services/export";
 import { RealtimeIndexer } from "./services/realtime";
 import { PriceService } from "./services/price";
 import { NETWORKS, type NetworkConfig } from "./config/networks";
@@ -52,6 +52,7 @@ function parseArgs() {
 		incremental: args.includes("--incremental") || args.includes("-i"),
 		serve: args.includes("--serve") || args.includes("-s"),
 		export: args.indexOf("--export") !== -1 ? args[args.indexOf("--export") + 1] : undefined,
+		format: args.indexOf("--format") !== -1 ? args[args.indexOf("--format") + 1] : undefined,
 		realtime: args.includes("--realtime") || args.includes("-r"),
 		hybrid: args.includes("--hybrid") || args.includes("-h"),
 		address: args.indexOf("--address") !== -1 ? args[args.indexOf("--address") + 1] : undefined,
@@ -108,8 +109,8 @@ async function runPipeline(db: any, config: NetworkConfig, args: ReturnType<type
 	});
 
 	if (args.export) {
-		writeFileSync(args.export, JSON.stringify(metrics, null, 2));
-		console.log(`\n[Export] Exported metrics to ${args.export}`);
+		const format = inferFormat(args.export, args.format);
+		exportMetrics(metrics, args.export, format);
 	}
 
 	return metrics;
