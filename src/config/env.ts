@@ -9,7 +9,7 @@ export const ENV = {
 	API_HOST: process.env.API_HOST || "localhost",
 	INCLUDE_EVENTS: (process.env.INCLUDE_EVENTS || "false").toLowerCase() === "true",
 	EVENTS_LIMIT: parseInt(process.env.EVENTS_LIMIT || "10", 10),
-	RECENT_SWAPS_LIMIT: parseInt(process.env.RECENT_SWAPS_LIMIT || "10", 10),
+
 
 	// Citrea
 	CITREA_RPC_URL: process.env.CITREA_RPC_URL || "https://rpc.mainnet.citrea.xyz",

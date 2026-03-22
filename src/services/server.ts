@@ -51,15 +51,6 @@ interface EnhancedMetrics {
 		averageFeePerTx: string;
 		volumeUsd: string;
 	}>;
-	latestSwapEvents: Array<{
-		tx_hash: string;
-		timestamp: string;
-		sender: string;
-		tokenInAddress: string;
-		tokenOutAddress: string;
-		amountIn: string;
-		amountOut: string;
-	}>;
 	swapEvents?: Array<SwapEventData>;
 	range: { startBlock: number | null; endBlock: number | null; lastUpdatedAt: string | null };
 	executionQuality: {
@@ -248,7 +239,7 @@ function getDailyStats(
 export function calculateEnhancedMetrics(
 	db: Database.Database,
 	config: { currency: { decimals: number; symbol: string } },
-	options?: { includeEvents?: boolean; eventsLimit?: number; recentLimit?: number }
+	options?: { includeEvents?: boolean; eventsLimit?: number }
 ): EnhancedMetrics {
 	// 1. Basic Counts
 	const totalUsers = (
@@ -320,30 +311,7 @@ export function calculateEnhancedMetrics(
 		lastUpdatedAt: lastTsRow?.last_ts ? new Date(lastTsRow.last_ts * 1000).toISOString() : null,
 	};
 
-	// 7. Recent Swaps
-	const recentLimit = options?.recentLimit ?? 10;
-	const recentRows = db
-		.prepare(
-			`SELECT tx_hash, timestamp, sender, amount_in, amount_out, token_in, token_out FROM swap_events ORDER BY block_number DESC, log_index DESC LIMIT ?`
-		)
-		.all(recentLimit) as any;
-
-	const recentSwaps = recentRows.map((r: any) => {
-		const addrIn = r.token_in.toLowerCase();
-		const addrOut = r.token_out.toLowerCase();
-		const timestamp = new Date(r.timestamp * 1000).toISOString();
-		return {
-			tx_hash: r.tx_hash,
-			timestamp,
-			sender: r.sender,
-			tokenInAddress: r.token_in,
-			tokenOutAddress: r.token_out,
-			amountIn: `${formatAmount(BigInt(r.amount_in), decimalsMap.get(addrIn) ?? 18, 6)}${symbolMap.get(addrIn) ? ` (${symbolMap.get(addrIn)})` : ""}`,
-			amountOut: `${formatAmount(BigInt(r.amount_out), decimalsMap.get(addrOut) ?? 18, 6)}${symbolMap.get(addrOut) ? ` (${symbolMap.get(addrOut)})` : ""}`,
-		};
-	});
-
-	// 8. Slippage
+	// 7. Slippage
 	const slippageStats = db
 		.prepare(
 			`SELECT COUNT(*) as total, AVG(execution_quality) as avgQuality, SUM(CASE WHEN execution_quality < 0.5 THEN 1 ELSE 0 END) as riskyCount FROM swap_events WHERE execution_quality IS NOT NULL`
@@ -363,7 +331,7 @@ export function calculateEnhancedMetrics(
 		topInteractingAddresses: topCallers,
 		topTradingPairs: topTokenPairs,
 		historicalDailyMetrics: dailyStats,
-		latestSwapEvents: recentSwaps,
+
 		range,
 		executionQuality: {
 			averageSlippageMargin: `${Number(avgQuality).toFixed(2)}%`,
@@ -393,7 +361,7 @@ const metricsCache = {
 function getCachedMetrics(
 	db: Database.Database,
 	config: { currency: { decimals: number; symbol: string } },
-	options?: { includeEvents?: boolean; eventsLimit?: number; recentLimit?: number }
+	options?: { includeEvents?: boolean; eventsLimit?: number }
 ): EnhancedMetrics {
 	const now = Date.now();
 	if (metricsCache.data && now - metricsCache.lastUpdated < metricsCache.ttl) {
@@ -416,7 +384,7 @@ export function startServer(
 				const metrics = getCachedMetrics(db, config, {
 					includeEvents: ENV.INCLUDE_EVENTS,
 					eventsLimit: ENV.EVENTS_LIMIT,
-					recentLimit: ENV.RECENT_SWAPS_LIMIT,
+
 				});
 				res.writeHead(200, { "Content-Type": "application/json" });
 				res.end(JSON.stringify(metrics, null, 2));

@@ -105,7 +105,6 @@ async function runPipeline(db: any, config: NetworkConfig, args: ReturnType<type
 	const metrics = calculateEnhancedMetrics(db, config, {
 		includeEvents: ENV.INCLUDE_EVENTS,
 		eventsLimit: ENV.EVENTS_LIMIT,
-		recentLimit: ENV.RECENT_SWAPS_LIMIT,
 	});
 
 	if (args.export) {
