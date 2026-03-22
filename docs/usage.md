@@ -39,25 +39,40 @@ pnpm realtime --network monad
 
 ### Scenario 3: Snapshot Export
 
-Runs a one-time synchronization pass (no server, no websockets) and flushes the calculated metrics down to a JSON artifact.
+Runs a one-time synchronization pass (no server, no websockets) and flushes the calculated metrics to a file.
 
 ```bash
-pnpm export analytics.json --network citrea
+# JSON (default)
+pnpm export -- --network citrea
+
+# CSV (generates a directory of files)
+pnpm export:csv -- --network citrea
+
+# Markdown report
+pnpm export:md -- --network citrea
 ```
 
-**Expected Output:** Logs indicating successful sync, a printed summary of the metrics, and process termination with an `analytics.json` file written to disk.
+### Scenario 4: API Server with Polling
+
+Starts the REST API server and continuously polls for new blocks at a 10-second interval.
+
+```bash
+pnpm serve -- --network citrea
+```
 
 ## Advanced Options
 
-| Flag             | Description                                                  |
-| :--------------- | :----------------------------------------------------------- |
-| `--network <id>` | Skip prompts and use specific network ID (`citrea`/`monad`). |
-| `--serve`        | Start the REST API server on port 3000.                      |
-| `--incremental`  | Resumes from the last known block in the DB.                 |
-| `--address <0x>` | Override the contract address for the current session.       |
+| Flag              | Description                                                  |
+| :---------------- | :----------------------------------------------------------- |
+| `--network <id>`  | Skip prompts and use specific network ID (`citrea`/`monad`). |
+| `--serve`         | Start the REST API server on port 3000.                      |
+| `--incremental`   | Resumes from the last known block in the DB.                 |
+| `--address <0x>`  | Override the contract address for the current session.       |
+| `--export <path>` | Export metrics to the specified file path.                   |
+| `--format <type>` | Set export format: `json`, `csv`, or `md`.                   |
 
 > [!TIP]
-> Use the cumulative `pnpm hybrid -h` for the most complete experience, as it ensures your database is up-to-date before transitioning to real-time events.
+> Use `pnpm hybrid` for the most complete experience, as it ensures your database is up-to-date before transitioning to real-time events.
 
 ### Verifying State
 
@@ -77,8 +92,24 @@ pnpm db:reset && pnpm start
 
 ## API Usage
 
-Fetch metrics via HTTP:
+The API server exposes 6 endpoints. Start with `pnpm serve` or `pnpm hybrid`.
 
 ```bash
+# Full aggregated metrics
 curl http://localhost:3000/metrics
+
+# Daily time-series with date filter
+curl "http://localhost:3000/metrics/daily?from=2026-03-01&to=2026-03-22"
+
+# Token-specific analytics
+curl http://localhost:3000/metrics/token/0x8d82c4e3c936c7b5724a382a9c5a4e6eb7ab6d5d
+
+# Trading pair stats
+curl http://localhost:3000/metrics/pair/0xe045.../0x8d82...
+
+# Wallet profile
+curl http://localhost:3000/metrics/wallet/0xf817...
+
+# System health & sync status
+curl http://localhost:3000/health
 ```

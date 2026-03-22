@@ -36,7 +36,7 @@ Transaction fee data.
 - `tx_hash` (TEXT, PK): Cryptographic link to parent `logs` entry.
 - `fee_wei` (TEXT): Total topological fee calculated via (Gas Used \* Effective Gas Price).
 
-### `token_prices` [NEW]
+### `token_prices`
 
 Cached USD values for tokens.
 
@@ -72,6 +72,17 @@ SELECT date(timestamp, 'unixepoch') as day, COUNT(*)
 FROM logs
 GROUP BY day
 ORDER BY day DESC;
+```
+
+**Wallet Activity Summary**
+
+```sql
+SELECT sender, COUNT(*) as swaps,
+       COUNT(DISTINCT token_in || token_out) as pairs
+FROM swap_events
+GROUP BY sender
+ORDER BY swaps DESC
+LIMIT 10;
 ```
 
 ## Database Maintenance

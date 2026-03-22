@@ -23,8 +23,8 @@ Environment variable reference for `.env`.
 | `MAX_RETRIES`              | Number | Optional | `3`               | Configuration for exponential backoff. Defines the maximum number of attempts for failed RPC data fetching requests.         |
 | `CITREA_DATABASE_FILE`     | String | Optional | `citrea_cache.db` | Local SQLite database filename target for Citrea network data. Defaults to root directory isolation.                         |
 | `MONAD_DATABASE_FILE`      | String | Optional | `monad_cache.db`  | Local SQLite database filename target for Monad network data. Defaults to root directory isolation.                          |
-| `API_PORT`                 | Number | Optional | `3000`            | Local port binding for the REST `/metrics` API server.                                                                       |
-| `API_HOST`                 | String | Optional | `localhost`       | Host binding address for the REST `/metrics` API server.                                                                     |
+| `API_PORT`                 | Number | Optional | `3000`            | Local port binding for the REST API server.                                                                                  |
+| `API_HOST`                 | String | Optional | `localhost`       | Host binding address for the REST API server.                                                                                |
 | `PRICE_UPDATE_INTERVAL_MS` | Number | Optional | `3600000`         | Interval (in milliseconds) delineating the frequency at which the CoinGecko price oracle refreshes its cache.                |
 | `COINGECKO_API_KEY`        | String | Optional | `-`               | Pro API Key for CoinGecko. If omitted, the engine automatically falls back to the public, rate-limited public CoinGecko API. |
 
@@ -44,6 +44,9 @@ pnpm start -- --address 0x123...
 # Force specific network
 pnpm start -- --network citrea
 
-# Enable Realtime Mode
-pnpm realtime
+# Export as CSV
+pnpm export:csv -- --network citrea
+
+# Export as Markdown report
+pnpm export:md -- --network citrea
 ```

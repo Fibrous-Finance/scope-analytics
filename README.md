@@ -50,28 +50,35 @@ Run the automated setup script to install dependencies, configure environment, a
 
 ## API & Analytics
 
-The integrated server provides advanced analytics via **GET** `/metrics`.
+The integrated server provides advanced analytics via a RESTful API.
 
-### Response Example
+### Endpoints
+
+| Endpoint                               | Description                                                |
+| :------------------------------------- | :--------------------------------------------------------- |
+| `GET /metrics`                         | Full aggregated metrics (volume, fees, pairs, daily stats) |
+| `GET /metrics/daily?from=&to=`         | Daily time-series with optional date range filter          |
+| `GET /metrics/token/:address`          | Token-specific volume, pairs, and daily chart              |
+| `GET /metrics/pair/:tokenIn/:tokenOut` | Pair analytics, top traders, and daily stats               |
+| `GET /metrics/wallet/:address`         | Wallet profile: volume, pairs, token flow, activity        |
+| `GET /health`                          | System health, sync status, and uptime                     |
+
+All endpoints return JSON with CORS headers (`Access-Control-Allow-Origin: *`).
+
+### Response Example (`/metrics`)
 
 ```json
 {
-	"uniqueActiveAddresses": 552,
-	"totalTransactions": 4280,
-	"cumulativeNetworkFees": "0.001947 cBTC",
+	"uniqueActiveAddresses": 948,
+	"totalTransactions": 7738,
+	"cumulativeNetworkFees": "0.003539 cBTC",
 	"averageTransactionFee": "0.00000045 cBTC",
-	"totalSwapEvents": 4272,
-	"tokenMetrics": {
-		"liquidityIn": [
-			{ "contractAddress": "0x...", "volumeUsd": "$368738.28", "swapCount": 1440 },
-			{ "contractAddress": "0x...", "volumeUsd": "N/A", "swapCount": 250 }
-		],
-		"liquidityOut": []
-	},
+	"totalSwapEvents": 7730,
+	"cumulativeVolumeUsd": "$2296902.45",
 	"executionQuality": {
-		"averageSlippageMargin": "1.84%",
-		"highSlippageSwaps": 1402,
-		"standardSlippageSwaps": 2766
+		"averageSlippageMargin": "1.75%",
+		"highSlippageSwaps": 2717,
+		"standardSlippageSwaps": 4769
 	}
 }
 ```
@@ -84,10 +91,13 @@ The integrated server provides advanced analytics via **GET** `/metrics`.
 
 ## Command Reference
 
-| Command         | Description                                     |
-| :-------------- | :---------------------------------------------- |
-| `pnpm start`    | Interactive setup and launch.                   |
-| `pnpm hybrid`   | Full sync: Backfill + Realtime + API Server.    |
-| `pnpm realtime` | WebSocket only (no historical scan).            |
-| `pnpm export`   | Generate `analytics.json` for snapshot sharing. |
-| `pnpm db:check` | Integrity check and storage statistics.         |
+| Command           | Description                                  |
+| :---------------- | :------------------------------------------- |
+| `pnpm start`      | Interactive setup and launch.                |
+| `pnpm hybrid`     | Full sync: Backfill + Realtime + API Server. |
+| `pnpm realtime`   | WebSocket only (no historical scan).         |
+| `pnpm serve`      | API server with polling (incremental mode).  |
+| `pnpm export`     | Export metrics as JSON.                      |
+| `pnpm export:csv` | Export metrics as CSV (directory of files).  |
+| `pnpm export:md`  | Export metrics as a Markdown report.         |
+| `pnpm db:check`   | Integrity check and storage statistics.      |
