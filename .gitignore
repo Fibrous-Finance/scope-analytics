@@ -11,6 +11,8 @@ node_modules/
 *.json
 !package.json
 !tsconfig.json
+analytics/
+analytics.md
 
 # IDE
 .vscode/
